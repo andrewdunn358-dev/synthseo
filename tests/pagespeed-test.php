@@ -197,9 +197,16 @@ check('categories are NOT passed as an array to the HTTP client',
     'an array would serialise as category[0]= and be ignored');
 check('all four categories are requested',
     substr_count($src, "'performance', 'seo', 'accessibility', 'best-practices'") >= 1);
-check('no Lighthouse audit keys are hardcoded as opportunities',
-    ! str_contains($src, 'render-blocking-resources'),
+// Comments are stripped first: the file legitimately NAMES the old
+// keys while explaining why they must not be used, and an assertion
+// that cannot tell code from prose fails on its own documentation.
+$code = preg_replace(['#/\*.*?\*/#s', '#//[^\n]*#'], '', $src);
+check('no Lighthouse audit keys are hardcoded in code',
+    ! str_contains($code, 'render-blocking-resources') && ! str_contains($code, 'uses-long-cache-ttl'),
     'a hardcoded key list breaks silently when Google renames things');
+check('findings are driven by the response auditRefs',
+    str_contains($code, "auditRefs"),
+    'the extractor must read the keys from the response, not know them');
 
 echo "\n";
 if ($failures) {
