@@ -51,4 +51,16 @@ class SiteController extends Controller
 
         return redirect('/sites')->with('status', 'Site removed.');
     }
+
+    public function updateFrequency(Request $request, Site $site)
+    {
+        $data = $request->validate([
+            'audit_frequency' => ['required', 'in:off,weekly,monthly'],
+        ]);
+
+        $site->update($data);
+        $site->rescheduleNextAudit();
+
+        return redirect('/sites/' . $site->id)->with('status', 'Audit schedule updated.');
+    }
 }

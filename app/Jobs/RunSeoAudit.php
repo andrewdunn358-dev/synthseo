@@ -90,6 +90,16 @@ class RunSeoAudit implements ShouldQueue
             'lighthouse_error' => $lighthouse['error'],
             'finished_at' => now(),
         ]);
+
+        // Any completed audit refreshes the schedule, whether it was
+        // triggered by a click or by the scheduler itself - so turning
+        // on weekly audits today starts a real 7-day clock from today,
+        // not from whenever a previous run happened to be.
+        $site = $audit->site()->withoutGlobalScopes()->first();
+
+        if ($site && $site->audit_frequency !== 'off') {
+            $site->rescheduleNextAudit();
+        }
     }
 
     /**

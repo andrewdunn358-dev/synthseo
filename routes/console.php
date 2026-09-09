@@ -1,6 +1,8 @@
 <?php
 
+use App\Jobs\RunSeoAudit;
 use App\Models\Audit;
+use App\Models\Site;
 use Illuminate\Support\Facades\Schedule;
 
 /**
@@ -36,3 +38,29 @@ Schedule::call(function () {
             'finished_at' => now(),
         ]);
 })->hourly();
+
+/**
+ * Recurring audits. Runs every 15 minutes rather than daily - the
+ * queue itself only checks once a minute, so a site due at 09:03 that
+ * only got noticed at midnight would look neglected even though
+ * nothing is actually wrong. This just finds sites whose next_audit_at
+ * has arrived and queues them exactly like a manual click would.
+ *
+ * withoutGlobalScopes for the same reason as everywhere else in
+ * console.php - a scheduled command has no logged-in user.
+ */
+Schedule::call(function () {
+    Site::withoutGlobalScopes()
+        ->where('audit_frequency', '!=', 'off')
+        ->whereNotNull('next_audit_at')
+        ->where('next_audit_at', '<=', now())
+        ->each(function (Site $site) {
+            $audit = $site->audits()->create([
+                'account_id' => $site->account_id,
+                'url' => $site->url,
+                'status' => 'queued',
+            ]);
+
+            RunSeoAudit::dispatch($audit->id);
+        });
+})->everyFifteenMinutes();
