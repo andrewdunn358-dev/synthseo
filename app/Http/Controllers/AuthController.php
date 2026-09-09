@@ -44,7 +44,20 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'min:8'],
+            'invite_code' => ['required', 'string'],
         ]);
+
+        $expected = config('services.registration.code');
+
+        // No code configured means no code can match - fails closed
+        // rather than accepting anything when someone forgets to set
+        // REGISTRATION_CODE. hash_equals rather than === so this isn't
+        // a timing side-channel for guessing the code.
+        if (! $expected || ! hash_equals((string) $expected, $data['invite_code'])) {
+            throw ValidationException::withMessages([
+                'invite_code' => 'That invite code is not valid.',
+            ]);
+        }
 
         // Every signup gets its own tenant. Doing this here rather
         // than leaving account_id null matters: the global scope fails

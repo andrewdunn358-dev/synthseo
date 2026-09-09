@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Local dev leftovers - not part of the app
+*.sqlite
+*.zip

@@ -55,4 +55,17 @@ return [
         ],
     ],
 
+    /*
+     | Registration invite code. There's nothing to leak by opening
+     | registration - every signup gets its own new, isolated tenant
+     | (see AuthController::register) - but this is an agency-managed
+     | product, not a public self-serve signup, so a code gates it
+     | until there's an actual invite-link flow. If unset, registration
+     | fails closed rather than silently accepting anything: no code
+     | configured means no code can match.
+     */
+    'registration' => [
+        'code' => env('REGISTRATION_CODE'),
+    ],
+
 ];

@@ -50,6 +50,14 @@ class SeoAuditService
      *  so the scoring can be re-tuned without hunting through checks. */
     private const WEIGHTS = ['high' => 15, 'medium' => 8, 'low' => 3];
 
+    /** Internal links sampled for the broken-link check, not every
+     *  link on the page. A large site can have hundreds; checking all
+     *  of them would turn one audit's single finding into a full-site
+     *  crawl, which the class doc already rules out. Capped low enough
+     *  that worst case (all timeouts) still leaves room inside the
+     *  job's overall timeout alongside PageSpeed's own 90s. */
+    private const MAX_LINKS_CHECKED = 8;
+
     /**
      * @return array{score:int|null,http_status:int|null,response_ms:int|null,error:string|null,findings:array}
      */
@@ -112,6 +120,7 @@ class SeoAuditService
         $findings[] = $this->checkWordCount($xpath);
         $findings[] = $this->checkRobotsTxt($url);
         $findings[] = $this->checkSitemap($url);
+        $findings[] = $this->checkBrokenLinks($xpath, $url);
 
         return [
             'score' => $this->score($findings),
@@ -380,6 +389,129 @@ class SeoAuditService
         return $response->successful()
             ? $this->pass($key, ucfirst($label) . ' found', $target)
             : $this->warn($key, $severity, "No {$label} found", $why, $target . ' returned HTTP ' . $response->status());
+    }
+
+    /**
+     * Samples internal links from the page and checks each resolves.
+     * Not unit-tested below for the same reason checkRobotsTxt and
+     * checkSitemap aren't - the entire point is a live HTTP call per
+     * link, which has nothing left to test once you stub the HTTP
+     * client out. Verified against a live site instead.
+     */
+    private function checkBrokenLinks(DOMXPath $xpath, string $baseUrl): array
+    {
+        $host = parse_url($baseUrl, PHP_URL_HOST);
+
+        if (! $host) {
+            return $this->warn('broken_links', 'low', 'Could not check internal links', 'The site URL could not be parsed.', null);
+        }
+
+        $links = [];
+        foreach ($xpath->query('//a[@href]') ?: [] as $a) {
+            $href = trim($a->getAttribute('href'));
+
+            if ($href === '' || str_starts_with($href, '#')
+                || preg_match('/^(mailto|tel|javascript):/i', $href)) {
+                continue;
+            }
+
+            $resolved = $this->resolveUrl($baseUrl, $href);
+
+            // Same-host only. An audit reporting someone else's broken
+            // link as if it were the client's problem would be wrong,
+            // not just unhelpful.
+            if ($resolved && parse_url($resolved, PHP_URL_HOST) === $host) {
+                $links[$resolved] = true;
+            }
+        }
+
+        $links = array_keys($links);
+
+        if ($links === []) {
+            return $this->pass('broken_links', 'No internal links found to check', '0 links');
+        }
+
+        $sample = array_slice($links, 0, self::MAX_LINKS_CHECKED);
+        $broken = [];
+
+        foreach ($sample as $link) {
+            $status = $this->fetchStatus($link);
+
+            if ($status === null || $status >= 400) {
+                $broken[] = $link . ($status ? " ({$status})" : ' (no response)');
+            }
+        }
+
+        $checkedNote = count($links) > count($sample)
+            ? count($sample) . ' of ' . count($links) . ' internal links sampled'
+            : count($sample) . ' internal links checked';
+
+        if ($broken === []) {
+            return $this->pass('broken_links', 'No broken internal links found', $checkedNote);
+        }
+
+        return $this->warn('broken_links', 'medium', 'Broken internal links found',
+            count($broken) . ' of ' . count($sample) . ' checked links returned an error or did not respond.',
+            implode(', ', array_slice($broken, 0, 5)));
+    }
+
+    /** HEAD first since it costs less than downloading the page; a
+     *  GET fallback for the servers (not rare) that reject HEAD
+     *  outright rather than actually being broken. */
+    private function fetchStatus(string $url): ?int
+    {
+        try {
+            $status = Http::timeout(6)
+                ->withHeaders(['User-Agent' => 'SynthSEO-Audit/1.0 (+https://synthseo.co.uk)'])
+                ->head($url)
+                ->status();
+
+            if (in_array($status, [405, 501], true)) {
+                $status = Http::timeout(6)
+                    ->withHeaders(['User-Agent' => 'SynthSEO-Audit/1.0 (+https://synthseo.co.uk)'])
+                    ->get($url)
+                    ->status();
+            }
+
+            return $status;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolves an href found on $base into an absolute URL. Handles
+     * the cases that actually occur in real markup - protocol-relative,
+     * root-relative, and path-relative - without pulling in a URL
+     * library for what real pages need in practice.
+     */
+    private function resolveUrl(string $base, string $href): ?string
+    {
+        if (preg_match('#^https?://#i', $href)) {
+            return $href;
+        }
+
+        $baseParts = parse_url($base);
+
+        if (! isset($baseParts['scheme'], $baseParts['host'])) {
+            return null;
+        }
+
+        $origin = $baseParts['scheme'] . '://' . $baseParts['host']
+            . (isset($baseParts['port']) ? ':' . $baseParts['port'] : '');
+
+        if (str_starts_with($href, '//')) {
+            return $baseParts['scheme'] . ':' . $href;
+        }
+
+        if (str_starts_with($href, '/')) {
+            return $origin . $href;
+        }
+
+        $basePath = $baseParts['path'] ?? '/';
+        $dir = strrpos($basePath, '/') !== false ? substr($basePath, 0, strrpos($basePath, '/') + 1) : '/';
+
+        return $origin . $dir . $href;
     }
 
     // ----------------------------------------------------------- helpers

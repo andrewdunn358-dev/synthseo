@@ -185,6 +185,45 @@ check('the same check as a warning costs half', runScore($oneHighWarn) === 92, (
 $disaster = array_fill(0, 20, ['check' => 'x', 'status' => 'fail', 'severity' => 'high']);
 check('the score floors at 0 rather than going negative', runScore($disaster) === 0, (string) runScore($disaster));
 
+echo "\n=== 11. URL RESOLUTION (broken-link checking) ===\n";
+// Pure logic, no HTTP - checkBrokenLinks itself is untested here for
+// the same reason checkRobotsTxt/checkSitemap are: the entire point is
+// a live request per link, which has nothing left to verify once the
+// HTTP client is stubbed out. This is the part of it that can be
+// tested, and it is where a resolver actually gets things wrong.
+function runResolve(?string $base, string $href): ?string
+{
+    $service = new SeoAuditService();
+    $ref = new ReflectionClass($service);
+    $m = $ref->getMethod('resolveUrl');
+    $m->setAccessible(true);
+    return $m->invoke($service, $base, $href);
+}
+
+check('an absolute https href is returned unchanged',
+    runResolve('https://example.com/blog/post', 'https://other.com/x') === 'https://other.com/x');
+
+check('a protocol-relative href takes the base scheme',
+    runResolve('https://example.com/blog/post', '//cdn.example.com/x.js') === 'https://cdn.example.com/x.js');
+
+check('a root-relative href resolves against the origin',
+    runResolve('https://example.com/blog/post', '/contact') === 'https://example.com/contact');
+
+check('a bare-relative href resolves against the current directory',
+    runResolve('https://example.com/blog/post', 'next') === 'https://example.com/blog/next');
+
+check('a bare-relative href resolves correctly with a trailing slash on base',
+    runResolve('https://example.com/blog/', 'next') === 'https://example.com/blog/next');
+
+check('a bare-relative href resolves against the root when base has no path',
+    runResolve('https://example.com', 'contact') === 'https://example.com/contact');
+
+check('a port on the base is preserved',
+    runResolve('https://example.com:8080/blog/post', 'next') === 'https://example.com:8080/blog/next');
+
+check('an unparseable base returns null rather than a wrong guess',
+    runResolve('not a url', '/contact') === null);
+
 echo "\n";
 if ($failures) {
     echo count($failures) . " FAILURE(S):\n";

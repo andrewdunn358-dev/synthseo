@@ -30,6 +30,8 @@
       <input type="email" name="email" value="{{ old('email') }}" required>
       <label>Password</label>
       <input type="password" name="password" required minlength="8">
+      <label>Invite code</label>
+      <input type="text" name="invite_code" required autocomplete="off">
       <button type="submit">Create account</button>
     </form>
     <div class="alt-link">Already have an account? <a href="/login">Log in</a></div>
