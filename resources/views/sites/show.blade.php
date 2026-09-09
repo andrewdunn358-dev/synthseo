@@ -1,6 +1,14 @@
 @extends('layouts.app')
 @section('title', $site->name . ' — SynthSEO')
 
+{{-- Same rule as the audit page: refresh only while something is
+     actually pending, and stop the moment it isn't. --}}
+@if ($audits->contains(fn ($a) => in_array($a->status, ['queued', 'running'])))
+  @section('head')
+    <meta http-equiv="refresh" content="5">
+  @endsection
+@endif
+
 @section('styles')
   .wrap-pad{ padding:40px 32px 80px; }
   .row-top{ display:flex; align-items:baseline; justify-content:space-between; gap:20px; flex-wrap:wrap; }

@@ -3,9 +3,18 @@
 ## Where it lives
 20i shared hosting, `~/public_html/laravel12`. Document root is set in
 the 20i panel (Manage Domains → Document Root) to
-`public_html/laravel12/public`. **Symlinked docroots do not work on 20i** —
-this was tried and produced a 500 on every request, including static
-files. Use the panel setting.
+`public_html/laravel12/public`.
+
+A previous attempt moved the app to `~/app` and symlinked
+`public_html -> app/public`, which 500'd every request including static
+files. The error log showed `AH00124: Request exceeded the limit of 10
+internal redirects` — a redirect loop, NOT a refused symlink. The cause
+was that the panel docroot was already `public_html/laravel12/public`,
+so once the app moved, that path resolved to
+`app/public/laravel12/public`, which does not exist. Whether 20i follows
+symlinked docroots is still untested. **Set the docroot in the panel and
+leave the filesystem alone** — it works and there is no reason to find
+out.
 
 ## PHP
 Both CLI and web are on 8.4. The web version is set by `~/.htaccess`,
@@ -66,3 +75,9 @@ that needs a live request.
 - SSH sessions drop shortly after a PHP version change in the panel.
   Non-interactive commands (`ssh user@host "command"`) keep working, so
   the whole git setup can be done that way if needed.
+- **Non-interactive SSH does not load `.bash_profile`**, so bare `php`
+  is 8.0.30 there and Laravel 12 refuses to boot. Always use
+  `/usr/php84/usr/bin/php` in `ssh host "..."` commands and in cron.
+- `git init` created a `master` branch while the remote uses `main`;
+  `git pull` then fails with "no tracking information". Fixed with
+  `git branch -m main && git branch --set-upstream-to=origin/main main`.

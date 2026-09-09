@@ -1,6 +1,22 @@
 @extends('layouts.app')
 @section('title', 'Audit — ' . $audit->site->name)
 
+{{-- Auto-refresh ONLY while there is something to wait for. The tag is
+     absent entirely once the audit is finished, so a completed report
+     never reloads under someone who is reading it - which is worse
+     than making them refresh in the first place.
+
+     A meta refresh rather than JS polling: it needs no script, works
+     with JS disabled, and cannot leave a timer running after the user
+     navigates away. The queue is cron-driven and fires once a minute,
+     so 5s is frequent enough to feel responsive without hammering
+     the server. --}}
+@if (in_array($audit->status, ['queued', 'running']))
+  @section('head')
+    <meta http-equiv="refresh" content="5">
+  @endsection
+@endif
+
 @section('styles')
   .wrap-pad{ padding:40px 32px 80px; }
   .row-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; }
@@ -30,6 +46,15 @@
            padding:13px 16px; border-radius:8px; margin-top:20px; font-size:14px; }
   .flash{ background:rgba(60,180,110,.12); border:1px solid rgba(60,180,110,.3);
     padding:11px 15px; border-radius:7px; margin-top:20px; font-size:14px; }
+  .waiting{ display:flex; align-items:center; gap:13px; }
+  .spinner{ width:16px; height:16px; flex:0 0 16px; border-radius:50%;
+    border:2px solid rgba(225,105,31,.25); border-top-color:var(--lime);
+    animation:spin .9s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  /* Respect the OS setting - a permanently spinning element is a real
+     problem for some people, and the text says everything the spinner
+     does. */
+  @media (prefers-reduced-motion: reduce){ .spinner{ animation:none; } }
 @endsection
 
 @section('content')
@@ -54,11 +79,21 @@
 
   {{-- Queued and running are shown honestly rather than as an empty
        results page. On shared hosting the queue is cron-driven, so
-       there is a real gap between asking for an audit and getting one. --}}
+       there is a real gap between asking for an audit and getting one -
+       and pretending otherwise with a fake progress bar would be
+       inventing certainty we don't have about when it will start. --}}
   @if (in_array($audit->status, ['queued', 'running']))
-    <div class="notice">
-      This audit is {{ $audit->status }}. Audits run from a scheduled task, so it may take up to a minute to start.
-      Refresh the page to check.
+    <div class="notice waiting">
+      <span class="spinner" aria-hidden="true"></span>
+      <span>
+        <strong>{{ $audit->status === 'queued' ? 'Waiting to start' : 'Running the checks' }}</strong>
+        <span class="muted">
+          — this page updates itself, no need to refresh.
+          @if ($audit->status === 'queued')
+            Audits start on the next scheduled run, usually within a minute.
+          @endif
+        </span>
+      </span>
     </div>
   @endif
 
