@@ -49,6 +49,16 @@
   .t-fail{ background:rgba(220,70,70,.16); color:#F08080; }
   .t-warn{ background:rgba(225,105,31,.16); color:#F09150; }
   .t-pass{ background:rgba(60,180,110,.14); color:#5FD39B; }
+  .chiprow{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .chiprow:last-child{ margin-bottom:0; }
+  .chiplabel{ font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--grey-dim);
+              width:78px; flex-shrink:0; }
+  .chip{ font-size:12.5px; padding:5px 10px; border-radius:14px; text-decoration:none;
+         border:1px solid transparent; white-space:nowrap; }
+  .chip.c-fail{ background:rgba(220,70,70,.14); color:#F08080; border-color:rgba(220,70,70,.3); }
+  .chip.c-warn{ background:rgba(225,105,31,.14); color:#F09150; border-color:rgba(225,105,31,.3); }
+  .chip.c-pass{ background:rgba(60,180,110,.10); color:#5FD39B; border-color:rgba(60,180,110,.2); }
+  .chip:hover{ filter:brightness(1.15); }
   .ftitle{ font-weight:600; }
   .fdetail{ color:var(--grey); font-size:14px; margin-top:5px; }
   .fvalue{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--grey-dim);
@@ -198,10 +208,29 @@
     <div class="notice">Google Lighthouse: {{ $audit->lighthouse_error }}</div>
   @endif
 
+  {{-- Quick-reference strip: every check that ran, at a glance, in the
+       original check order rather than fail-first - so "did the
+       broken-link check even run" is answerable without scrolling
+       past everything else to find one pass among fifteen. Each chip
+       jumps to its full entry below. --}}
+  @if ($findings->isNotEmpty())
+    <div class="panel">
+      <p class="secthead">All checks</p>
+      @foreach ($findings->groupBy('source') as $source => $group)
+        <div class="chiprow">
+          <span class="chiplabel">{{ $source === 'lighthouse' ? 'Lighthouse' : 'On-page' }}</span>
+          @foreach ($group as $finding)
+            <a class="chip c-{{ $finding->status }}" href="#check-{{ $finding->id }}">{{ $finding->title }}</a>
+          @endforeach
+        </div>
+      @endforeach
+    </div>
+  @endif
+
   @if ($findings->isNotEmpty())
     <div class="panel">
       @foreach ($findings as $finding)
-        <div class="find">
+        <div class="find" id="check-{{ $finding->id }}">
           <span class="tag t-{{ $finding->status }}">{{ $finding->status }}</span>
           <span class="ftitle">{{ $finding->title }}</span>
           @if ($finding->source === 'lighthouse')<span class="srctag">Lighthouse</span>@endif
