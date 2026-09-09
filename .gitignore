@@ -26,3 +26,4 @@ Thumbs.db
 # Local dev leftovers - not part of the app
 *.sqlite
 *.zip
+/laravel12-35313133388d
