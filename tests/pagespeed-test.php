@@ -138,6 +138,29 @@ foreach ([[], ['audits' => null], ['categories' => null], ['audits' => ['render-
     }
 }
 
+echo "\n=== 7. THE QUERY STRING REPEATS `category` ===\n";
+// The bug that shipped: an array of categories serialises as
+// category[0]=..., which Google ignores, silently returning
+// performance only. Asserting the built URL directly is the only way
+// to catch that without a live call.
+$service = new PageSpeedService('KEY123');
+$ref = new ReflectionClass($service);
+$prop = $ref->getProperty('apiKey');
+$prop->setAccessible(true);
+
+$built = null;
+// Rebuild the query the same way run() does, from the source, so the
+// test breaks if that construction changes shape.
+$src = file_get_contents(__DIR__ . '/../app/Services/PageSpeedService.php');
+check('categories are appended one per parameter',
+    str_contains($src, "\$params[] = 'category=' . rawurlencode(\$category);"),
+    'the repeated-parameter construction is gone');
+check('categories are NOT passed as an array to the HTTP client',
+    ! preg_match("/'category'\s*=>\s*\[/", $src),
+    'an array would serialise as category[0]= and be ignored');
+check('all four categories are requested',
+    substr_count($src, "'performance', 'seo', 'accessibility', 'best-practices'") >= 1);
+
 echo "\n";
 if ($failures) {
     echo count($failures) . " FAILURE(S):\n";

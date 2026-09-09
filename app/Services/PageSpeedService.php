@@ -77,18 +77,31 @@ class PageSpeedService
             'strategy' => $strategy, 'findings' => [], 'error' => null,
         ];
 
-        $query = [
-            'url' => $url,
-            'strategy' => $strategy,
-            'category' => ['performance', 'seo', 'accessibility', 'best-practices'],
+        // PSI expects `category` REPEATED once per value:
+        //   ?category=performance&category=seo&...
+        // Passing an array to Laravel's HTTP client serialises it as
+        // category[0]=...&category[1]=..., which Google silently ignores
+        // and falls back to performance only. That is exactly what
+        // happened on the first real run: Performance came back 69 and
+        // the other three were empty, looking like a Google fault when
+        // it was ours. Built by hand so the shape is unambiguous.
+        $params = [
+            'url=' . rawurlencode($url),
+            'strategy=' . rawurlencode($strategy),
         ];
 
-        if ($this->apiKey) {
-            $query['key'] = $this->apiKey;
+        foreach (['performance', 'seo', 'accessibility', 'best-practices'] as $category) {
+            $params[] = 'category=' . rawurlencode($category);
         }
 
+        if ($this->apiKey) {
+            $params[] = 'key=' . rawurlencode($this->apiKey);
+        }
+
+        $endpoint = self::ENDPOINT . '?' . implode('&', $params);
+
         try {
-            $response = Http::timeout(self::TIMEOUT)->get(self::ENDPOINT, $query);
+            $response = Http::timeout(self::TIMEOUT)->get($endpoint);
         } catch (\Throwable $e) {
             Log::warning('PageSpeed request failed', ['url' => $url, 'error' => $e->getMessage()]);
             return array_merge($empty, [
