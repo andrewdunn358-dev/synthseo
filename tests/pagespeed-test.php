@@ -46,7 +46,19 @@ $lh = [
     'finalUrl' => 'https://torque.synphony.co.uk/marketing.html',
     'requestedUrl' => 'https://torque.synphony.co.uk/',
     'categories' => [
-        'performance' => ['score' => 0.86],
+        'performance' => [
+            'score' => 0.86,
+            // Lighthouse 13 renamed these; the extractor must not care.
+            'auditRefs' => [
+                ['id' => 'render-blocking-insight'],
+                ['id' => 'cache-insight'],
+                ['id' => 'image-delivery-insight'],
+                ['id' => 'modern-http-insight'],
+                ['id' => 'largest-contentful-paint'],
+                ['id' => 'network-dependency-tree-insight'],
+                ['id' => 'third-parties-insight'],
+            ],
+        ],
         'seo' => ['score' => 1],
         'accessibility' => ['score' => 0.88],
         'best-practices' => ['score' => 1],
@@ -55,19 +67,31 @@ $lh = [
         'largest-contentful-paint' => ['numericValue' => 3412.7],
         'total-blocking-time' => ['numericValue' => 0],
         'cumulative-layout-shift' => ['numericValue' => 0.0451],
-        'render-blocking-resources' => [
+        'render-blocking-insight' => [
             'score' => 0.2,
+            'title' => 'Render-blocking requests',
             'description' => 'Resources are blocking. [Learn more](https://developer.chrome.com/docs/x).',
             'displayValue' => 'Potential savings of 1,920 ms',
         ],
-        'uses-long-cache-ttl' => [
+        'cache-insight' => [
             'score' => 0.45,
+            'title' => 'Use efficient cache lifetimes',
             'description' => 'A long cache lifetime speeds repeat visits.',
             'displayValue' => 'Est savings of 2,085 KiB',
         ],
-        'uses-text-compression' => ['score' => 1, 'description' => 'All good.'],
-        'modern-image-formats' => ['score' => 0.75, 'description' => 'Use WebP.', 'displayValue' => '1,529 KiB'],
-        'unused-javascript' => ['score' => null, 'description' => 'Not applicable.'],
+        'modern-http-insight' => ['score' => 1, 'title' => 'Modern HTTP', 'description' => 'All good.'],
+        'image-delivery-insight' => [
+            'score' => 0.75, 'title' => 'Improve image delivery',
+            'description' => 'Use WebP.', 'displayValue' => '1,529 KiB',
+        ],
+        'network-dependency-tree-insight' => [
+            'score' => null, 'scoreDisplayMode' => 'informative',
+            'title' => 'Network dependency tree', 'description' => 'Informational only.',
+        ],
+        'third-parties-insight' => [
+            'score' => null, 'scoreDisplayMode' => 'notApplicable',
+            'title' => 'Third parties', 'description' => 'Nothing to report.',
+        ],
     ],
 ];
 
@@ -106,17 +130,30 @@ echo "\n=== 4. FINDINGS ===\n";
 $findings = call('findings', $lh);
 $keys = array_column($findings, 'check');
 
-check('a badly failing opportunity is included', in_array('render-blocking-resources', $keys, true));
-check('a passing opportunity is excluded', ! in_array('uses-text-compression', $keys, true));
-check('a null-score audit is excluded', ! in_array('unused-javascript', $keys, true));
+// The bug that shipped: keys were hardcoded from Lighthouse 12
+// ('render-blocking-resources'), Lighthouse 13 renamed them, and the
+// list came back empty next to a performance score of 69 - reading as
+// "no problems" rather than "extractor broken". These keys are all the
+// new names, and nothing in the service knows any of them.
+check('a failing insight is included under its new key', in_array('render-blocking-insight', $keys, true), implode(',', $keys));
+check('a passing insight is excluded', ! in_array('modern-http-insight', $keys, true));
+check('an informative audit is excluded', ! in_array('network-dependency-tree-insight', $keys, true));
+check('a notApplicable audit is excluded', ! in_array('third-parties-insight', $keys, true));
+check('a metric is not repeated as an issue', ! in_array('largest-contentful-paint', $keys, true));
 check('every finding is tagged as lighthouse', array_unique(array_column($findings, 'source')) === ['lighthouse']);
 
-$blocking = $findings[array_search('render-blocking-resources', $keys, true)];
+check("Lighthouse's own title is used, not one of ours",
+    $findings[0]['title'] === 'Render-blocking requests', $findings[0]['title'] ?? 'null');
+check('worst-scoring finding comes first', $findings[0]['check'] === 'render-blocking-insight', $findings[0]['check']);
+
+$blocking = $findings[array_search('render-blocking-insight', $keys, true)];
 check('score below 0.5 is a fail', $blocking['status'] === 'fail', $blocking['status']);
 check('the displayValue is carried as evidence', $blocking['value'] === 'Potential savings of 1,920 ms');
 
-$images = $findings[array_search('modern-image-formats', $keys, true)];
+$images = $findings[array_search('image-delivery-insight', $keys, true)];
 check('score of 0.75 is a warn, not a fail', $images['status'] === 'warn', $images['status']);
+
+check('an audit missing from auditRefs is never invented', count($findings) === 3, (string) count($findings));
 
 echo "\n=== 5. MARKDOWN LINKS ARE STRIPPED ===\n";
 // Lighthouse descriptions are markdown. Left raw, a client-facing
@@ -160,6 +197,9 @@ check('categories are NOT passed as an array to the HTTP client',
     'an array would serialise as category[0]= and be ignored');
 check('all four categories are requested',
     substr_count($src, "'performance', 'seo', 'accessibility', 'best-practices'") >= 1);
+check('no Lighthouse audit keys are hardcoded as opportunities',
+    ! str_contains($src, 'render-blocking-resources'),
+    'a hardcoded key list breaks silently when Google renames things');
 
 echo "\n";
 if ($failures) {

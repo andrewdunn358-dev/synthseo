@@ -43,20 +43,18 @@ class PageSpeedService
      *  generous or we abandon runs that would have succeeded. */
     private const TIMEOUT = 90;
 
-    /** Opportunities worth surfacing to a client, with the wording we
-     *  use for them. Lighthouse emits dozens; most are noise in a
-     *  client-facing report. This is the shortlist that maps to
-     *  something a person can actually go and do. */
-    private const OPPORTUNITIES = [
-        'render-blocking-resources' => 'Render-blocking requests are delaying first paint',
-        'uses-responsive-images' => 'Images are larger than they need to be',
-        'unused-css-rules' => 'Unused CSS is being downloaded',
-        'unused-javascript' => 'Unused JavaScript is being downloaded',
-        'uses-long-cache-ttl' => 'Static assets are not cached for long enough',
-        'uses-text-compression' => 'Text assets are not compressed',
-        'modern-image-formats' => 'Images are not in a modern format (WebP or AVIF)',
-        'server-response-time' => 'The server is slow to send the first byte',
-        'total-byte-weight' => 'The page is very heavy to download',
+    /** Most failing audits a single report should carry. Lighthouse
+     *  emits dozens; past this many they stop being a to-do list and
+     *  start being wallpaper. Worst-scoring first. */
+    private const MAX_FINDINGS = 8;
+
+    /** Audits that describe a measurement rather than something to go
+     *  and fix. These are already shown as the Core Web Vitals row, so
+     *  repeating them as "issues" would double-count one problem. */
+    private const METRIC_AUDITS = [
+        'largest-contentful-paint', 'cumulative-layout-shift', 'total-blocking-time',
+        'first-contentful-paint', 'speed-index', 'interactive', 'max-potential-fid',
+        'first-meaningful-paint', 'estimated-input-latency',
     ];
 
     public function __construct(private ?string $apiKey = null)
@@ -159,44 +157,83 @@ class PageSpeedService
     }
 
     /**
-     * Turns Lighthouse's failing audits into findings in our own shape,
-     * so one report can show both engines' output in one list.
+     * Turns Lighthouse's failing audits into findings in our own shape.
+     *
+     * DELIBERATELY DOES NOT HARDCODE AUDIT KEYS. The first version did,
+     * with a curated list like 'render-blocking-resources', and it
+     * silently produced nothing: Lighthouse 13 replaced "opportunities"
+     * with "insights" and renamed the keys, so every lookup missed. The
+     * failure mode was the worst kind - a performance score of 69 with
+     * an empty issue list, which reads as "no problems found" rather
+     * than "this code is broken".
+     *
+     * So instead it walks the performance category's own auditRefs and
+     * takes whatever is failing, using Lighthouse's own titles. That
+     * survives Google renaming things, which they will do again.
      */
     private function findings(array $lh): array
     {
         $audits = $lh['audits'] ?? [];
-        $findings = [];
+        $refs = $lh['categories']['performance']['auditRefs'] ?? [];
 
-        foreach (self::OPPORTUNITIES as $key => $title) {
-            $audit = $audits[$key] ?? null;
+        if (! is_array($audits) || ! is_array($refs)) {
+            return [];
+        }
 
-            if (! is_array($audit)) {
+        $candidates = [];
+
+        foreach ($refs as $ref) {
+            $key = is_array($ref) ? ($ref['id'] ?? null) : null;
+
+            if (! $key || ! isset($audits[$key]) || ! is_array($audits[$key])) {
                 continue;
             }
 
+            $audit = $audits[$key];
             $score = $audit['score'] ?? null;
+            $mode = $audit['scoreDisplayMode'] ?? 'numeric';
 
-            // Lighthouse marks a passing opportunity with score 1. Only
-            // the ones it actually flags are worth a client's attention,
-            // so passes are skipped here - unlike our own checks, where
-            // recording the pass is the point. Listing forty green
-            // Lighthouse rows would bury our own findings.
+            // informative / notApplicable / manual audits carry no
+            // verdict - listing them as issues would be inventing one.
+            if (in_array($mode, ['informative', 'notApplicable', 'manual'], true)) {
+                continue;
+            }
+
+            // Passing audits are skipped, unlike our own checks where
+            // recording the pass is the point. Forty green Lighthouse
+            // rows would bury the findings that matter.
             if (! is_numeric($score) || $score >= 0.9) {
                 continue;
             }
 
-            $findings[] = [
-                'source' => 'lighthouse',
-                'check' => $key,
-                'status' => $score < 0.5 ? 'fail' : 'warn',
-                'severity' => $score < 0.5 ? 'medium' : 'low',
-                'title' => $title,
-                'detail' => $this->cleanDescription($audit['description'] ?? null),
-                'value' => $audit['displayValue'] ?? null,
+            if (in_array($key, self::METRIC_AUDITS, true)) {
+                continue;
+            }
+
+            $title = $audit['title'] ?? null;
+
+            if (! $title) {
+                continue;
+            }
+
+            $candidates[] = [
+                'score' => (float) $score,
+                'finding' => [
+                    'source' => 'lighthouse',
+                    'check' => $key,
+                    'status' => $score < 0.5 ? 'fail' : 'warn',
+                    'severity' => $score < 0.5 ? 'medium' : 'low',
+                    'title' => $title,
+                    'detail' => $this->cleanDescription($audit['description'] ?? null),
+                    'value' => $audit['displayValue'] ?? null,
+                ],
             ];
         }
 
-        return $findings;
+        // Worst first, so the cap keeps the things most worth doing.
+        usort($candidates, fn ($a, $b) => $a['score'] <=> $b['score']);
+
+        return array_column(array_slice($candidates, 0, self::MAX_FINDINGS), 'finding');
     }
 
     /**
