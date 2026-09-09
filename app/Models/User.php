@@ -19,9 +19,11 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
+        'account_id',
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -45,5 +47,22 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function account()
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    /**
+     * Staff see every account's data. This is checked in exactly one
+     * place that matters - the global scope in App\Support\BelongsToAccount -
+     * and it is the reason registration must never assign this role.
+     * Promote a user to staff deliberately, from tinker or an admin
+     * screen, never as a side effect of signing up.
+     */
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
     }
 }

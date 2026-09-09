@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Account;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -45,10 +46,19 @@ class AuthController extends Controller
             'password' => ['required', 'min:8'],
         ]);
 
+        // Every signup gets its own tenant. Doing this here rather
+        // than leaving account_id null matters: the global scope fails
+        // closed, so a user without an account would log in to a
+        // permanently empty dashboard with no error to explain it.
+        $account = Account::create(['name' => $data['name']]);
+
         $user = User::create([
+            'account_id' => $account->id,
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            // Never 'staff' from a public form - see User::isStaff().
+            'role' => 'client',
         ]);
 
         Auth::login($user);
