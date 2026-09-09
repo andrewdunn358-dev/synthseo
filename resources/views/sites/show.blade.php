@@ -68,22 +68,29 @@
     @php
       // Oldest-to-newest for a left-to-right trend, current page only -
       // a sparkline spanning a pagination boundary would be reading two
-      // different time windows as one continuous line. Only scored,
-      // completed audits: a run stuck in queued/failed has no score
-      // and would either break the scale or need inventing one.
-      $trend = $audits->filter(fn ($a) => $a->status === 'completed' && $a->score !== null)->reverse()->values();
+      // different time windows as one continuous line.
+      //
+      // Plots fail-count, not $audit->score. The score field still
+      // exists on the row but audits/show deliberately stopped
+      // displaying it - it's an invented weighting that moved between
+      // runs when response time crossed a threshold, and told a reader
+      // nothing on its own. "Fail count" is the same honest measure
+      // already used everywhere else on this page; a downward line
+      // means real progress, not a shifted internal number.
+      $trend = $audits->filter(fn ($a) => $a->status === 'completed')->reverse()->values();
     @endphp
 
     @if ($trend->count() >= 2)
       @php
         $w = 100; $h = 34; $pad = 3;
-        $max = max(100, $trend->max('score'));
-        $min = min(0, $trend->min('score'));
+        $failCounts = $trend->map(fn ($a) => $a->issueCounts()['fail']);
+        $max = max(1, $failCounts->max());
+        $min = 0;
         $range = max(1, $max - $min);
-        $step = $trend->count() > 1 ? ($w - $pad * 2) / ($trend->count() - 1) : 0;
-        $points = $trend->values()->map(function ($a, $i) use ($step, $pad, $h, $min, $range) {
+        $step = ($w - $pad * 2) / ($trend->count() - 1);
+        $points = $failCounts->values()->map(function ($fails, $i) use ($step, $pad, $h, $min, $range) {
           $x = $pad + $i * $step;
-          $y = $h - (($a->score - $min) / $range) * ($h - $pad * 2) - $pad;
+          $y = $h - (($fails - $min) / $range) * ($h - $pad * 2) - $pad;
           return round($x, 1) . ',' . round($y, 1);
         })->implode(' ');
       @endphp
@@ -93,8 +100,8 @@
             stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
         </svg>
         <div class="muted" style="font-size:12px;display:flex;justify-content:space-between">
-          <span>{{ $trend->first()->score }} on {{ $trend->first()->created_at->format('j M') }}</span>
-          <span>{{ $trend->last()->score }} on {{ $trend->last()->created_at->format('j M') }}</span>
+          <span>{{ $failCounts->first() }} to fix on {{ $trend->first()->created_at->format('j M') }}</span>
+          <span>{{ $failCounts->last() }} to fix on {{ $trend->last()->created_at->format('j M') }}</span>
         </div>
       </div>
     @endif
