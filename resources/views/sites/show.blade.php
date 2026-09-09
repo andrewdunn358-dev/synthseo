@@ -56,7 +56,14 @@
           </a>
           <div class="muted" style="font-size:13px">{{ ucfirst($audit->status) }}</div>
         </div>
-        <span class="score {{ $audit->scoreBand() }}">{{ $audit->score !== null ? $audit->score : '—' }}</span>
+        @if ($audit->status === 'completed')
+          @php($c = $audit->issueCounts())
+          <span class="score {{ $c['fail'] ? 'poor' : ($c['warn'] ? 'fair' : 'good') }}">
+            {{ $c['fail'] }} to fix · {{ $c['warn'] }} to review
+          </span>
+        @else
+          <span class="score unknown">—</span>
+        @endif
       </div>
     @empty
       <div class="muted" style="margin-top:10px">No audits yet. Run the first one above.</div>

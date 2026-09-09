@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Audit;
+use App\Services\PageSpeedService;
 use App\Services\SeoAuditService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -31,13 +32,15 @@ class RunSeoAudit implements ShouldQueue
      *  hammering a client's server to prove it is bad manners. */
     public int $tries = 2;
 
-    public int $timeout = 120;
+    /** Generous because PageSpeed alone can take 90 seconds on a slow
+     *  site, on top of our own three requests. */
+    public int $timeout = 240;
 
     public function __construct(public int $auditId)
     {
     }
 
-    public function handle(SeoAuditService $engine): void
+    public function handle(SeoAuditService $engine, PageSpeedService $pageSpeed): void
     {
         // withoutGlobalScopes because a queued job has no authenticated
         // user, so the tenant scope would otherwise find nothing. The
@@ -53,9 +56,19 @@ class RunSeoAudit implements ShouldQueue
 
         $result = $engine->run($audit->url);
 
+        // Lighthouse runs second and separately. Our own checks are the
+        // ones that must always produce a result - PageSpeed is a
+        // third-party call that fails routinely, and a rate limit at
+        // Google's end must not cost the client their audit.
+        $lighthouse = $pageSpeed->run($audit->url);
+
         $audit->findings()->delete();
 
         foreach ($result['findings'] as $finding) {
+            $audit->findings()->create($finding + ['source' => 'synthseo']);
+        }
+
+        foreach ($lighthouse['findings'] as $finding) {
             $audit->findings()->create($finding);
         }
 
@@ -65,6 +78,16 @@ class RunSeoAudit implements ShouldQueue
             'http_status' => $result['http_status'],
             'response_ms' => $result['response_ms'],
             'error' => $result['error'],
+            'lh_performance' => $lighthouse['scores']['performance'] ?? null,
+            'lh_seo' => $lighthouse['scores']['seo'] ?? null,
+            'lh_accessibility' => $lighthouse['scores']['accessibility'] ?? null,
+            'lh_best_practices' => $lighthouse['scores']['best-practices'] ?? null,
+            'lh_lcp_ms' => $lighthouse['metrics']['lcp_ms'] ?? null,
+            'lh_tbt_ms' => $lighthouse['metrics']['tbt_ms'] ?? null,
+            'lh_cls' => $lighthouse['metrics']['cls'] ?? null,
+            'lighthouse_strategy' => $lighthouse['strategy'],
+            'lighthouse_final_url' => $lighthouse['final_url'],
+            'lighthouse_error' => $lighthouse['error'],
             'finished_at' => now(),
         ]);
     }

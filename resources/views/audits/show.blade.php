@@ -23,8 +23,21 @@
   .muted{ color:var(--grey); }
   .url{ color:var(--grey-dim); font-family:'IBM Plex Mono',monospace; font-size:13px; word-break:break-all; }
   .panel{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:22px; margin-top:22px; }
-  .bigscore{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:40px;
-             padding:14px 24px; border-radius:10px; line-height:1; }
+  .counts{ display:flex; gap:10px; flex-wrap:wrap; }
+  .count{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:14px;
+          padding:8px 14px; border-radius:8px; white-space:nowrap; }
+  .lh{ display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; }
+  .lhcard{ flex:1 1 150px; background:var(--ink); border:1px solid var(--border);
+           border-radius:9px; padding:14px 16px; }
+  .lhnum{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:26px; line-height:1.1; }
+  .lhlabel{ font-size:12px; color:var(--grey); margin-top:4px; }
+  .g-good{ color:#5FD39B; } .g-fair{ color:#F09150; } .g-poor{ color:#F08080; } .g-unknown{ color:var(--grey); }
+  .vitals{ display:flex; gap:26px; flex-wrap:wrap; margin-top:16px;
+           font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--grey); }
+  .srctag{ font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--grey-dim);
+           border:1px solid var(--border-strong); padding:2px 6px; border-radius:4px; margin-left:8px; }
+  .secthead{ font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--grey);
+             margin:0 0 4px; }
   .good{ background:rgba(60,180,110,.14); color:#5FD39B; }
   .fair{ background:rgba(225,105,31,.16); color:#F09150; }
   .poor{ background:rgba(220,70,70,.16); color:#F08080; }
@@ -72,7 +85,19 @@
         @if ($audit->response_ms)<span>{{ $audit->response_ms }} ms</span>@endif
       </div>
     </div>
-    <div class="bigscore {{ $audit->scoreBand() }}">{{ $audit->score !== null ? $audit->score : '—' }}</div>
+    {{-- The bare score out of 100 used to live here and told a reader
+         nothing: it was our own invented weighting presented as a
+         precise figure, and it moved between runs when response time
+         crossed a threshold. Counts of what needs doing are honest and
+         immediately actionable. --}}
+    @if ($audit->status === 'completed')
+      @php($counts = $audit->issueCounts())
+      <div class="counts">
+        <span class="count poor">{{ $counts['fail'] }} to fix</span>
+        <span class="count fair">{{ $counts['warn'] }} to review</span>
+        <span class="count good">{{ $counts['pass'] }} passing</span>
+      </div>
+    @endif
   </div>
 
   @if (session('status'))<div class="flash">{{ session('status') }}</div>@endif
@@ -101,12 +126,54 @@
     <div class="notice">{{ $audit->error }}</div>
   @endif
 
+  {{-- Google's own numbers, labelled as Google's. For a client report
+       "Google scores your performance 86" carries weight that our own
+       figure never could - which is exactly why these are shown
+       separately from our findings rather than blended into one score. --}}
+  @if ($audit->hasLighthouse())
+    <div class="panel">
+      <p class="secthead">Google Lighthouse</p>
+      <div class="lh">
+        @foreach ([
+          'Performance' => $audit->lh_performance,
+          'SEO' => $audit->lh_seo,
+          'Accessibility' => $audit->lh_accessibility,
+          'Best practices' => $audit->lh_best_practices,
+        ] as $label => $value)
+          <div class="lhcard">
+            <div class="lhnum g-{{ \App\Models\Audit::lighthouseBand($value) }}">{{ $value !== null ? $value : '—' }}</div>
+            <div class="lhlabel">{{ $label }}</div>
+          </div>
+        @endforeach
+      </div>
+
+      <div class="vitals">
+        @if ($audit->lh_lcp_ms !== null)<span>LCP {{ number_format($audit->lh_lcp_ms / 1000, 1) }}s</span>@endif
+        @if ($audit->lh_tbt_ms !== null)<span>TBT {{ $audit->lh_tbt_ms }}ms</span>@endif
+        @if ($audit->lh_cls !== null)<span>CLS {{ rtrim(rtrim(number_format($audit->lh_cls, 3), '0'), '.') }}</span>@endif
+        @if ($audit->lighthouse_strategy)<span>{{ ucfirst($audit->lighthouse_strategy) }}</span>@endif
+      </div>
+
+      {{-- Lighthouse follows redirects. If it measured a different URL
+           from the one requested, say so - a report that quietly audits
+           somewhere else is worse than no report. --}}
+      @if ($audit->lighthouse_final_url && rtrim($audit->lighthouse_final_url, '/') !== rtrim($audit->url, '/'))
+        <div class="notice" style="margin-top:16px">
+          Redirected — Google measured <strong>{{ $audit->lighthouse_final_url }}</strong>, not the URL as entered.
+        </div>
+      @endif
+    </div>
+  @elseif ($audit->lighthouse_error)
+    <div class="notice">Google Lighthouse: {{ $audit->lighthouse_error }}</div>
+  @endif
+
   @if ($findings->isNotEmpty())
     <div class="panel">
       @foreach ($findings as $finding)
         <div class="find">
           <span class="tag t-{{ $finding->status }}">{{ $finding->status }}</span>
           <span class="ftitle">{{ $finding->title }}</span>
+          @if ($finding->source === 'lighthouse')<span class="srctag">Lighthouse</span>@endif
           @if ($finding->detail)<div class="fdetail">{{ $finding->detail }}</div>@endif
           @if ($finding->value)<div class="fvalue">{{ $finding->value }}</div>@endif
         </div>

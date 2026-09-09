@@ -11,7 +11,10 @@ class SiteController extends Controller
     {
         // No explicit account filter - the global scope on Site does it.
         // See App\Support\BelongsToAccount.
-        $sites = Site::with('latestAudit')->orderBy('name')->get();
+        // findings eager-loaded because issueCounts() reads them - without
+        // this the listing fires a query per site, which is fine at three
+        // sites and awful at fifty.
+        $sites = Site::with('latestAudit.findings')->orderBy('name')->get();
 
         return view('sites.index', compact('sites'));
     }
@@ -36,7 +39,7 @@ class SiteController extends Controller
         // Route model binding respects the global scope, so a client
         // requesting another account's site id gets a 404 rather than
         // someone else's data.
-        $audits = $site->audits()->paginate(20);
+        $audits = $site->audits()->with('findings')->paginate(20);
 
         return view('sites.show', compact('site', 'audits'));
     }

@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class AuditFinding extends Model
 {
-    protected $fillable = ['audit_id', 'check', 'status', 'severity', 'title', 'detail', 'value'];
+    protected $fillable = ['audit_id', 'source', 'check', 'status', 'severity', 'title', 'detail', 'value'];
 
     public function audit()
     {

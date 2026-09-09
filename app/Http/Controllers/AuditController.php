@@ -24,7 +24,7 @@ class AuditController extends Controller
 
     public function show(Audit $audit)
     {
-        $audit->load('site');
+        $audit->load('site', 'findings');
 
         // Ordered so the things worth fixing are at the top: failures
         // before warnings before passes, then by severity. A client

@@ -57,9 +57,22 @@ Promote deliberately:
 
 Staff bypass the tenant scope and see every account.
 
+## PageSpeed API key (optional but wanted)
+
+PSI answers without a key and rate-limits hard. Get one from the Google
+Cloud console with the PageSpeed Insights API enabled, then add to
+`.env`:
+
+    PAGESPEED_API_KEY=...
+
+No key means audits still work - the Lighthouse panel just says Google
+rate-limited the request.
+
 ## Tests
 
     php tests/audit-engine-test.php
+    php tests/pagespeed-test.php
+    php tests/blade-balance-test.php
 
 Standalone, no database or framework boot needed. Covers the parsing and
 scoring, which is where the bugs are. The HTTP fetch is not covered —

@@ -18,6 +18,16 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    /*
+     | Google PageSpeed Insights. Optional - PSI answers without a key
+     | but rate-limits hard, which is fine for testing and not for
+     | running audits across a client base. Get one from the Google
+     | Cloud console with the PageSpeed Insights API enabled.
+     */
+    'pagespeed' => [
+        'key' => env('PAGESPEED_API_KEY'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],

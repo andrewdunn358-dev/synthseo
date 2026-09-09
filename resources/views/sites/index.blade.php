@@ -55,10 +55,13 @@
           <a class="name" href="/sites/{{ $site->id }}">{{ $site->name }}</a>
           <div class="url">{{ $site->url }}</div>
         </div>
-        @if ($site->latestAudit)
-          <span class="score {{ $site->latestAudit->scoreBand() }}">
-            {{ $site->latestAudit->score !== null ? $site->latestAudit->score : '—' }}
+        @if ($site->latestAudit && $site->latestAudit->status === 'completed')
+          @php($c = $site->latestAudit->issueCounts())
+          <span class="score {{ $c['fail'] ? 'poor' : ($c['warn'] ? 'fair' : 'good') }}">
+            {{ $c['fail'] }} to fix · {{ $c['warn'] }} to review
           </span>
+        @elseif ($site->latestAudit)
+          <span class="score unknown">{{ ucfirst($site->latestAudit->status) }}</span>
         @else
           <span class="score unknown">not audited</span>
         @endif
