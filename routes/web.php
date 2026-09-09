@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ContentController;
 use App\Http\Controllers\SiteController;
 
 Route::get('/', function () {
@@ -25,4 +26,7 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/sites/{site}/audits', [AuditController::class, 'store']);
     Route::get('/audits/{audit}', [AuditController::class, 'show']);
+
+    Route::post('/sites/{site}/content', [ContentController::class, 'store']);
+    Route::get('/content/{contentPiece}', [ContentController::class, 'show']);
 });

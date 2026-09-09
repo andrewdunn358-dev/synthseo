@@ -40,8 +40,9 @@ class SiteController extends Controller
         // requesting another account's site id gets a 404 rather than
         // someone else's data.
         $audits = $site->audits()->with('findings')->paginate(20);
+        $content = $site->content()->limit(10)->get();
 
-        return view('sites.show', compact('site', 'audits'));
+        return view('sites.show', compact('site', 'audits', 'content'));
     }
 
     public function destroy(Site $site)

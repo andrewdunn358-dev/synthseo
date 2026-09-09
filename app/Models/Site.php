@@ -20,4 +20,9 @@ class Site extends Model
     {
         return $this->hasOne(Audit::class)->latestOfMany();
     }
+
+    public function content()
+    {
+        return $this->hasMany(ContentPiece::class)->latest();
+    }
 }

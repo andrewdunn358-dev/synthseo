@@ -28,6 +28,16 @@ return [
         'key' => env('PAGESPEED_API_KEY'),
     ],
 
+    /*
+     | Anthropic Claude API. Used for content-generation drafts only -
+     | this is an API key from console.anthropic.com, billed per use,
+     | not a ChatGPT-style subscription. Without it, generation requests
+     | fail with a readable error rather than throwing.
+     */
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],
