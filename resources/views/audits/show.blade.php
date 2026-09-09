@@ -11,7 +11,7 @@
      navigates away. The queue is cron-driven and fires once a minute,
      so 5s is frequent enough to feel responsive without hammering
      the server. --}}
-@if (in_array($audit->status, ['queued', 'running']))
+@if (in_array($audit->status, ['queued', 'running']) || $audit->isRecommendationsPending())
   @section('head')
     <meta http-equiv="refresh" content="5">
   @endsection
@@ -68,6 +68,7 @@
      problem for some people, and the text says everything the spinner
      does. */
   @media (prefers-reduced-motion: reduce){ .spinner{ animation:none; } }
+  .article{ font-size:15px; line-height:1.7; white-space:pre-wrap; }
 @endsection
 
 @section('content')
@@ -124,6 +125,36 @@
 
   @if ($audit->error)
     <div class="notice">{{ $audit->error }}</div>
+  @endif
+
+  {{-- On request, not automatic - see the migration's doc comment.
+       Shown near the top because a prioritised "fix these 3 things
+       first" is worth more to a client than the raw findings list
+       below it, which stays for anyone who wants the detail. --}}
+  @if ($audit->status === 'completed')
+    <div class="panel">
+      <p class="secthead">AI recommendations</p>
+
+      @if ($audit->recommendations)
+        <div class="article">{{ $audit->recommendations }}</div>
+      @elseif ($audit->isRecommendationsPending())
+        <div class="waiting">
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="muted">Writing the recommendations — this updates itself, no need to refresh.</span>
+        </div>
+      @else
+        @if ($audit->recommendations_error)
+          <div class="notice" style="margin-top:0">{{ $audit->recommendations_error }}</div>
+        @endif
+        <form method="POST" action="/audits/{{ $audit->id }}/recommendations" style="margin-top:14px">
+          @csrf
+          <button class="primary" type="submit"
+            style="background:var(--lime); color:#fff; border:0; padding:11px 20px; border-radius:7px; font:inherit; font-weight:600; cursor:pointer">
+            Get AI recommendations
+          </button>
+        </form>
+      @endif
+    </div>
   @endif
 
   {{-- Google's own numbers, labelled as Google's. For a client report

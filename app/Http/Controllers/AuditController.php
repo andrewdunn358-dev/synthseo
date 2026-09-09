@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateAuditRecommendations;
 use App\Jobs\RunSeoAudit;
 use App\Models\Audit;
 use App\Models\Site;
@@ -35,5 +36,15 @@ class AuditController extends Controller
             ->get();
 
         return view('audits.show', compact('audit', 'findings'));
+    }
+
+    public function recommend(Audit $audit)
+    {
+        $audit->update(['recommendations_status' => 'queued']);
+
+        GenerateAuditRecommendations::dispatch($audit->id);
+
+        return redirect('/audits/' . $audit->id)
+            ->with('status', 'Generating recommendations. It will be ready within a minute.');
     }
 }

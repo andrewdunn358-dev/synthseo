@@ -15,6 +15,7 @@ class Audit extends Model
         'lh_performance', 'lh_seo', 'lh_accessibility', 'lh_best_practices',
         'lh_lcp_ms', 'lh_tbt_ms', 'lh_cls', 'lighthouse_strategy',
         'lighthouse_final_url', 'lighthouse_error',
+        'recommendations', 'recommendations_status', 'recommendations_error',
     ];
 
     protected function casts(): array
@@ -83,5 +84,10 @@ class Audit extends Model
             $this->score >= 50 => 'fair',
             default => 'poor',
         };
+    }
+
+    public function isRecommendationsPending(): bool
+    {
+        return in_array($this->recommendations_status, ['queued', 'generating'], true);
     }
 }

@@ -26,6 +26,7 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/sites/{site}/audits', [AuditController::class, 'store']);
     Route::get('/audits/{audit}', [AuditController::class, 'show']);
+    Route::post('/audits/{audit}/recommendations', [AuditController::class, 'recommend']);
 
     Route::post('/sites/{site}/content', [ContentController::class, 'store']);
     Route::get('/content/{contentPiece}', [ContentController::class, 'show']);
