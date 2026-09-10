@@ -24,8 +24,8 @@
   .metric-sub{ font-size:var(--fs-xs); color:var(--grey-dim); margin-top:10px; }
   .lead-tag{ display:inline-block; background:rgba(225,105,31,.14); color:var(--brand); font-size:var(--fs-2xs);
              font-weight:700; padding:3px 9px; border-radius:12px; margin-top:8px; }
-  .metric-explain{ font-size:var(--fs-2xs); color:var(--grey-dim); margin-top:14px; padding-top:14px;
-                    border-top:1px solid var(--border); text-align:left; line-height:1.5; }
+  .metric-explain{ font-size:var(--fs-sm); color:var(--grey); margin-top:14px; padding-top:14px;
+                    border-top:1px solid var(--border); text-align:left; line-height:1.6; }
   .verdict{ font-size:var(--fs-md); font-weight:600; font-family:'Space Grotesk',sans-serif; margin:0 0 8px; }
   .verdict.good{ color:var(--good); }
   .verdict.fair{ color:var(--fair); }
