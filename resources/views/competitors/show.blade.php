@@ -24,6 +24,11 @@
   .metric-sub{ font-size:var(--fs-xs); color:var(--grey-dim); margin-top:10px; }
   .lead-tag{ display:inline-block; background:rgba(225,105,31,.14); color:var(--brand); font-size:var(--fs-2xs);
              font-weight:700; padding:3px 9px; border-radius:12px; margin-top:8px; }
+  .metric-explain{ font-size:var(--fs-2xs); color:var(--grey-dim); margin-top:14px; padding-top:14px;
+                    border-top:1px solid var(--border); text-align:left; line-height:1.5; }
+  .verdict{ font-size:var(--fs-md); font-weight:600; font-family:'Space Grotesk',sans-serif; margin:0 0 8px; }
+  .verdict.good{ color:var(--good); }
+  .verdict.fair{ color:var(--fair); }
 @endsection
 
 @section('content')
@@ -71,12 +76,37 @@
     </div>
 
     <div class="card" style="margin-top:var(--sp-5)">
-      <p class="subhead">What this means</p>
-      <p class="muted" style="margin:0; font-size:var(--fs-sm); line-height:1.6">
-        Estimated traffic is based on ranking keywords and their search volume, not a direct analytics reading from either
-        site — it is a fair like-for-like way to compare two competitors when neither has shared their real numbers.
-        Data updates weekly.
-      </p>
+      @if ($leader === 'us')
+        <p class="verdict good">{{ $comparison->site->name }} is ahead right now</p>
+        <p class="muted" style="margin:0; font-size:var(--fs-sm); line-height:1.6">
+          More estimated visits and more ranking keywords means Google is sending this site more free traffic, and
+          for a wider range of searches, than {{ $comparison->competitor_domain }}. Worth protecting that lead -
+          publishing content regularly (see the drafts panel above) is the main way to keep it.
+        </p>
+      @elseif ($leader === 'them')
+        <p class="verdict fair">{{ $comparison->competitor_domain }} is ahead right now</p>
+        <p class="muted" style="margin:0; font-size:var(--fs-sm); line-height:1.6">
+          {{ $comparison->competitor_domain }} is estimated to get more free traffic from Google, and shows up for
+          more different searches, than {{ $comparison->site->name }} does. That usually comes down to having more
+          content published, or content that matches more of what customers actually search for - the audit and
+          content drafts above are the two levers for closing that gap.
+        </p>
+      @else
+        <p class="muted" style="margin:0; font-size:var(--fs-sm); line-height:1.6">
+          Not enough data was returned to say which site is ahead.
+        </p>
+      @endif
+
+      <div class="metric-explain">
+        <strong>Estimated monthly organic visits</strong> — roughly how many people per month are likely to land on
+        the site by clicking an unpaid Google result, based on the search terms it ranks for and how popular each
+        one is. It is not a reading from either site's real analytics, since neither site has shared that.<br><br>
+        <strong>Ranking keywords</strong> — the number of different search terms Google shows this site for anywhere
+        in its results, not just page one. A higher number means the site is visible for a broader range of what
+        customers actually search for.<br><br>
+        Both figures come from DataForSEO's own search index, updated weekly - not a live crawl of either site, so a
+        change made today will not show here until the index refreshes.
+      </div>
     </div>
   @endif
 </div>
