@@ -36,7 +36,7 @@ class CompetitorController extends Controller
 
     public function show(CompetitorComparison $comparison)
     {
-        $comparison->load('site');
+        $comparison->load('site.latestAudit');
 
         return view('competitors.show', ['comparison' => $comparison]);
     }

@@ -108,6 +108,35 @@
         change made today will not show here until the index refreshes.
       </div>
     </div>
+
+    {{-- The two features lived side by side without connecting - a
+         traffic gap with no link to the audit that might explain it
+         left "now what?" unanswered. This is the cheap half of that
+         fix: the other half is the competitor context now folded
+         into the AI recommendations prompt itself, see
+         GenerateAuditRecommendations. --}}
+    @if ($comparison->site->latestAudit)
+      @php
+        $latestAudit = $comparison->site->latestAudit;
+        $auditCounts = $latestAudit->status === 'completed' ? $latestAudit->issueCounts() : null;
+      @endphp
+      <div class="card">
+        <p class="subhead">{{ $comparison->site->name }}'s own audit</p>
+        @if ($auditCounts)
+          <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">
+            Last checked {{ $latestAudit->created_at->diffForHumans() }} —
+            @if ($auditCounts['fail'] > 0)
+              <strong style="color:var(--poor)">{{ $auditCounts['fail'] }} issue{{ $auditCounts['fail'] === 1 ? '' : 's' }}</strong> still need fixing.
+            @else
+              nothing currently failing.
+            @endif
+          </p>
+        @else
+          <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">The most recent audit is still {{ $latestAudit->status }}.</p>
+        @endif
+        <a class="btn" href="/audits/{{ $latestAudit->id }}">View audit</a>
+      </div>
+    @endif
   @endif
 </div>
 @endsection

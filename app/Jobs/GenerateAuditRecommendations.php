@@ -48,7 +48,27 @@ class GenerateAuditRecommendations implements ShouldQueue
             ->map(fn ($f) => $f->toArray())
             ->all();
 
-        $result = $claude->generateRecommendations($findings, $audit->site->name, $audit->site->url);
+        // Most recent completed comparison only - a stale or failed
+        // one would tell Claude nothing true. Silently absent (not an
+        // error) when there is none yet, since a comparison is
+        // optional and most audits will not have one.
+        $comparison = $audit->site->competitorComparisons()
+            ->where('status', 'completed')
+            ->whereNotNull('our_traffic')
+            ->whereNotNull('competitor_traffic')
+            ->latest()
+            ->first();
+
+        $competitorContext = $comparison ? [
+            'domain' => $comparison->competitor_domain,
+            'ahead' => $comparison->leader() === 'us',
+            'our_traffic' => $comparison->our_traffic,
+            'competitor_traffic' => $comparison->competitor_traffic,
+            'our_keywords' => $comparison->our_keywords,
+            'competitor_keywords' => $comparison->competitor_keywords,
+        ] : null;
+
+        $result = $claude->generateRecommendations($findings, $audit->site->name, $audit->site->url, $competitorContext);
 
         $audit->update([
             'recommendations_status' => $result['error'] && ! $result['text'] ? 'failed' : 'completed',

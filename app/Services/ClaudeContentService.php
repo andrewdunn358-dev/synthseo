@@ -75,10 +75,17 @@ class ClaudeContentService
      * every audit - see the migration's doc comment - so this is only
      * ever called once someone has actually asked for it.
      *
+     * $competitorContext, when present, is folded into the prompt so
+     * Claude can weight advice against a real comparison ("you're
+     * behind on X, which likely relates to this fix") rather than
+     * generic advice in a vacuum. Optional because most audits will
+     * not have a completed comparison to draw on yet.
+     *
      * @param array<int, array{title:string,detail:?string,status:string,severity:?string,source:string}> $findings
+     * @param array{domain:string,ahead:bool,our_traffic:?int,competitor_traffic:?int,our_keywords:?int,competitor_keywords:?int}|null $competitorContext
      * @return array{text:?string,model:?string,error:?string}
      */
-    public function generateRecommendations(array $findings, string $siteName, string $siteUrl): array
+    public function generateRecommendations(array $findings, string $siteName, string $siteUrl, ?array $competitorContext = null): array
     {
         $empty = ['text' => null, 'model' => null, 'error' => null];
 
@@ -86,7 +93,7 @@ class ClaudeContentService
             return array_merge($empty, ['error' => 'Nothing to summarise - this audit has no failing or warning findings.']);
         }
 
-        $result = $this->callClaude($this->recommendationsPrompt($findings, $siteName, $siteUrl), 1024);
+        $result = $this->callClaude($this->recommendationsPrompt($findings, $siteName, $siteUrl, $competitorContext), 1024);
 
         if ($result['error']) {
             return array_merge($empty, ['error' => $result['error']]);
@@ -165,7 +172,7 @@ class ClaudeContentService
         PROMPT;
     }
 
-    private function recommendationsPrompt(array $findings, string $siteName, string $siteUrl): string
+    private function recommendationsPrompt(array $findings, string $siteName, string $siteUrl, ?array $competitorContext = null): string
     {
         // Findings serialised as plain lines rather than JSON - the
         // model doesn't need machine-readable input, and a flat list
@@ -184,12 +191,26 @@ class ClaudeContentService
 
         $findingsList = implode("\n", $lines);
 
+        // Told as a sentence, not raw numbers - the model doesn't need
+        // exact figures to weight its advice, and repeating unrounded
+        // estimated-traffic numbers back in the recommendation text
+        // would overstate a precision this data doesn't actually have.
+        $competitorLine = '';
+
+        if ($competitorContext) {
+            $position = $competitorContext['ahead'] ? 'ahead of' : 'behind';
+            $competitorLine = "\nFor context: compared to their competitor {$competitorContext['domain']}, "
+                . "this business is currently {$position} on estimated search visibility and ranking keywords. "
+                . "Weigh that when deciding what matters most, but do not quote specific traffic numbers back - "
+                . "the findings above are the concrete, actionable detail.\n";
+        }
+
         return <<<PROMPT
         You are advising the owner of {$siteName} ({$siteUrl}) on their
         website's SEO audit. Here are the issues found:
 
         {$findingsList}
-
+        {$competitorLine}
         Write a short, prioritised action plan a non-technical business
         owner can actually use: which 2-4 things matter most and why,
         in plain English, no jargon left unexplained. Skip anything
