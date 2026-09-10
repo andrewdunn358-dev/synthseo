@@ -38,6 +38,21 @@ class CompetitorController extends Controller
     {
         $comparison->load('site.latestAudit');
 
-        return view('competitors.show', ['comparison' => $comparison]);
+        // Top 4 only, worst-first - same ordering AuditController uses,
+        // duplicated rather than shared because this page needs a short
+        // taste of the findings, not the full ordered list the audit
+        // page itself builds.
+        $topFindings = collect();
+
+        if ($comparison->site->latestAudit && $comparison->site->latestAudit->status === 'completed') {
+            $topFindings = $comparison->site->latestAudit->findings()
+                ->whereIn('status', ['fail', 'warn'])
+                ->orderByRaw("FIELD(status,'fail','warn')")
+                ->orderByRaw("FIELD(severity,'high','medium','low')")
+                ->limit(4)
+                ->get();
+        }
+
+        return view('competitors.show', ['comparison' => $comparison, 'topFindings' => $topFindings]);
     }
 }

@@ -29,6 +29,10 @@
   .verdict{ font-size:var(--fs-md); font-weight:600; font-family:'Space Grotesk',sans-serif; margin:0 0 8px; }
   .verdict.good{ color:var(--good); }
   .verdict.fair{ color:var(--fair); }
+  .finding-line{ padding:7px 0; font-size:var(--fs-sm); }
+  .tag{ font-size:11px; font-weight:600; padding:3px 8px; border-radius:4px; margin-right:10px; }
+  .t-fail{ background:rgba(240,100,90,.16); color:var(--poor); }
+  .t-warn{ background:rgba(240,166,62,.16); color:var(--fair); }
 @endsection
 
 @section('content')
@@ -134,6 +138,18 @@
         @else
           <p class="muted" style="margin:0 0 12px; font-size:var(--fs-base)">The most recent audit is still {{ $latestAudit->status }}.</p>
         @endif
+
+        @if ($topFindings->isNotEmpty())
+          <div style="margin-bottom:16px">
+            @foreach ($topFindings as $finding)
+              <div class="finding-line">
+                <span class="tag t-{{ $finding->status }}">{{ $finding->status }}</span>
+                <span>{{ $finding->title }}</span>
+              </div>
+            @endforeach
+          </div>
+        @endif
+
         <a class="btn" href="/audits/{{ $latestAudit->id }}">View audit</a>
       </div>
     @endif
