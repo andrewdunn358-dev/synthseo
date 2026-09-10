@@ -24,8 +24,8 @@
   .metric-sub{ font-size:var(--fs-xs); color:var(--grey-dim); margin-top:10px; }
   .lead-tag{ display:inline-block; background:rgba(225,105,31,.14); color:var(--brand); font-size:var(--fs-2xs);
              font-weight:700; padding:3px 9px; border-radius:12px; margin-top:8px; }
-  .metric-explain{ font-size:var(--fs-sm); color:var(--grey); margin-top:14px; padding-top:14px;
-                    border-top:1px solid var(--border); text-align:left; line-height:1.6; }
+  .metric-explain{ font-size:var(--fs-base); color:var(--grey); margin-top:14px; padding-top:14px;
+                    border-top:1px solid var(--border); text-align:left; line-height:1.65; }
   .verdict{ font-size:var(--fs-md); font-weight:600; font-family:'Space Grotesk',sans-serif; margin:0 0 8px; }
   .verdict.good{ color:var(--good); }
   .verdict.fair{ color:var(--fair); }
@@ -78,21 +78,21 @@
     <div class="card" style="margin-top:var(--sp-5)">
       @if ($leader === 'us')
         <p class="verdict good">{{ $comparison->site->name }} is ahead right now</p>
-        <p class="muted" style="margin:0; font-size:var(--fs-sm); line-height:1.6">
+        <p class="muted" style="margin:0; font-size:var(--fs-base); line-height:1.65">
           More estimated visits and more ranking keywords means Google is sending this site more free traffic, and
           for a wider range of searches, than {{ $comparison->competitor_domain }}. Worth protecting that lead -
           publishing content regularly (see the drafts panel above) is the main way to keep it.
         </p>
       @elseif ($leader === 'them')
         <p class="verdict fair">{{ $comparison->competitor_domain }} is ahead right now</p>
-        <p class="muted" style="margin:0; font-size:var(--fs-sm); line-height:1.6">
+        <p class="muted" style="margin:0; font-size:var(--fs-base); line-height:1.65">
           {{ $comparison->competitor_domain }} is estimated to get more free traffic from Google, and shows up for
           more different searches, than {{ $comparison->site->name }} does. That usually comes down to having more
           content published, or content that matches more of what customers actually search for - the audit and
           content drafts above are the two levers for closing that gap.
         </p>
       @else
-        <p class="muted" style="margin:0; font-size:var(--fs-sm); line-height:1.6">
+        <p class="muted" style="margin:0; font-size:var(--fs-base); line-height:1.65">
           Not enough data was returned to say which site is ahead.
         </p>
       @endif
@@ -123,7 +123,7 @@
       <div class="card">
         <p class="subhead">{{ $comparison->site->name }}'s own audit</p>
         @if ($auditCounts)
-          <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">
+          <p class="muted" style="margin:0 0 12px; font-size:var(--fs-base)">
             Last checked {{ $latestAudit->created_at->diffForHumans() }} —
             @if ($auditCounts['fail'] > 0)
               <strong style="color:var(--poor)">{{ $auditCounts['fail'] }} issue{{ $auditCounts['fail'] === 1 ? '' : 's' }}</strong> still need fixing.
@@ -132,7 +132,7 @@
             @endif
           </p>
         @else
-          <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">The most recent audit is still {{ $latestAudit->status }}.</p>
+          <p class="muted" style="margin:0 0 12px; font-size:var(--fs-base)">The most recent audit is still {{ $latestAudit->status }}.</p>
         @endif
         <a class="btn" href="/audits/{{ $latestAudit->id }}">View audit</a>
       </div>
