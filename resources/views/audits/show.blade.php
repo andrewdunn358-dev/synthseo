@@ -93,6 +93,7 @@
         <span class="badge poor">{{ $counts['fail'] }} to fix</span>
         <span class="badge fair">{{ $counts['warn'] }} to review</span>
         <span class="badge good">{{ $counts['pass'] }} passing</span>
+        <a class="btn" href="/audits/{{ $audit->id }}/pdf">Download PDF</a>
       </div>
     @endif
   </div>
