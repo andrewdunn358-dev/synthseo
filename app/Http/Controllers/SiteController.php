@@ -41,8 +41,9 @@ class SiteController extends Controller
         // someone else's data.
         $audits = $site->audits()->with('findings')->paginate(20);
         $content = $site->content()->limit(10)->get();
+        $competitors = $site->competitorComparisons()->limit(10)->get();
 
-        return view('sites.show', compact('site', 'audits', 'content'));
+        return view('sites.show', compact('site', 'audits', 'content', 'competitors'));
     }
 
     public function destroy(Site $site)

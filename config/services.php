@@ -38,6 +38,21 @@ return [
         'key' => env('ANTHROPIC_API_KEY'),
     ],
 
+    /*
+     | DataForSEO Labs API - used for competitor traffic/keyword
+     | comparison only. `sandbox` defaults to true: sandbox requests
+     | cost nothing and return dummy data in the real response shape,
+     | so a missing or wrong .env value fails toward "free and fake"
+     | rather than toward "spends real money". Set
+     | DATAFORSEO_SANDBOX=false only once the account is funded and
+     | the integration has been proven against sandbox data.
+     */
+    'dataforseo' => [
+        'login' => env('DATAFORSEO_LOGIN'),
+        'password' => env('DATAFORSEO_PASSWORD'),
+        'sandbox' => env('DATAFORSEO_SANDBOX', true),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],

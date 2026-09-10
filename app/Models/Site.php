@@ -33,6 +33,11 @@ class Site extends Model
         return $this->hasMany(ContentPiece::class)->latest();
     }
 
+    public function competitorComparisons()
+    {
+        return $this->hasMany(CompetitorComparison::class)->latest();
+    }
+
     /**
      * Days between scheduled runs for each frequency. 'off' never
      * appears here - callers check that before reaching this.

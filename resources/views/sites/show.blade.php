@@ -4,7 +4,7 @@
 {{-- Same rule as the audit page: refresh only while something is
      actually pending, and stop the moment it isn't. Content pending
      counts too, so a generating draft also keeps this page live. --}}
-@if ($audits->contains(fn ($a) => in_array($a->status, ['queued', 'running'])) || $content->contains(fn ($c) => $c->isPending()))
+@if ($audits->contains(fn ($a) => in_array($a->status, ['queued', 'running'])) || $content->contains(fn ($c) => $c->isPending()) || $competitors->contains(fn ($c) => $c->isPending()))
   @section('head')
     <meta http-equiv="refresh" content="5">
   @endsection
@@ -154,6 +154,36 @@
       </a>
     @empty
       <div class="muted" style="margin-top:10px">No drafts yet. Enter a topic above to generate the first one.</div>
+    @endforelse
+  </div>
+
+  <div class="card">
+    <p class="subhead">Competitor comparison</p>
+    <form method="POST" action="/sites/{{ $site->id }}/competitors" class="topic-form">
+      @csrf
+      <input type="text" name="competitor_domain" placeholder="Competitor domain, e.g. example.co.uk" required maxlength="255">
+      <button class="btn btn-primary" type="submit">Compare</button>
+    </form>
+
+    @forelse ($competitors as $comparison)
+      <a class="row" href="/competitors/{{ $comparison->id }}">
+        <div>
+          <div class="rtitle">vs {{ $comparison->competitor_domain }}</div>
+          <div class="rmeta">{{ $comparison->created_at->format('j M Y, H:i') }} · {{ ucfirst($comparison->status) }}</div>
+        </div>
+        @if ($comparison->status === 'completed')
+          @php
+            $leadsThem = $comparison->leader() === 'us';
+          @endphp
+          <span class="badge {{ $leadsThem ? 'good' : 'fair' }}">{{ $leadsThem ? 'Ahead' : 'Behind' }}</span>
+        @elseif ($comparison->status === 'failed')
+          <span class="badge poor">Failed</span>
+        @else
+          <span class="badge unknown">—</span>
+        @endif
+      </a>
+    @empty
+      <div class="muted" style="margin-top:10px">No comparisons yet. Enter a competitor's domain above.</div>
     @endforelse
   </div>
 </div>
