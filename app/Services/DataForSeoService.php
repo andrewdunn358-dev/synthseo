@@ -84,7 +84,7 @@ class DataForSeoService
      */
     private function fetchDomainMetrics(string $domain): array
     {
-        $domain = $this->normalizeDomain($domain);
+        $domain = self::normalizeDomain($domain);
         $base = config('services.dataforseo.sandbox', true) ? self::SANDBOX_BASE : self::LIVE_BASE;
 
         try {
@@ -124,10 +124,15 @@ class DataForSeoService
         ];
     }
 
-    /** Strips scheme, www, and any path - DataForSEO wants a bare
-     *  domain, and a client typing a full URL into the form should
-     *  not have to know that. */
-    private function normalizeDomain(string $domain): string
+    /**
+     * Strips scheme, www, and any path - DataForSEO wants a bare
+     * domain, and a client typing a full URL into the form should
+     * not have to know that. Public and static so the controller can
+     * clean the value before storing it too - the display should
+     * show the same domain the API was actually asked about, not
+     * whatever raw string someone pasted in.
+     */
+    public static function normalizeDomain(string $domain): string
     {
         $domain = trim($domain);
         $domain = preg_replace('#^https?://#i', '', $domain);
