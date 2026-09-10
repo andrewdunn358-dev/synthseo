@@ -64,6 +64,63 @@
   @if (session('status'))<div class="flash">{{ session('status') }}</div>@endif
 
   <div class="card">
+    <p class="subhead">Content drafts</p>
+    <form method="POST" action="/sites/{{ $site->id }}/content" class="topic-form">
+      @csrf
+      <input type="text" name="topic" placeholder="Topic, e.g. &quot;why regular servicing matters&quot;" required maxlength="255">
+      <button class="btn btn-primary" type="submit">Generate draft</button>
+    </form>
+
+    @forelse ($content as $piece)
+      <a class="row" href="/content/{{ $piece->id }}">
+        <div>
+          <div class="rtitle">{{ $piece->title ?? $piece->topic }}</div>
+          <div class="rmeta">{{ $piece->created_at->format('j M Y, H:i') }} · {{ ucfirst($piece->status) }}</div>
+        </div>
+        @if ($piece->status === 'completed')
+          <span class="badge good">{{ $piece->word_count }} words</span>
+        @elseif ($piece->status === 'failed')
+          <span class="badge poor">Failed</span>
+        @else
+          <span class="badge unknown">—</span>
+        @endif
+      </a>
+    @empty
+      <div class="muted" style="margin-top:10px">No drafts yet. Enter a topic above to generate the first one.</div>
+    @endforelse
+  </div>
+
+  <div class="card">
+    <p class="subhead">Competitor comparison</p>
+    <form method="POST" action="/sites/{{ $site->id }}/competitors" class="topic-form">
+      @csrf
+      <input type="text" name="competitor_domain" placeholder="Competitor domain, e.g. example.co.uk" required maxlength="255">
+      <button class="btn btn-primary" type="submit">Compare</button>
+    </form>
+
+    @forelse ($competitors as $comparison)
+      <a class="row" href="/competitors/{{ $comparison->id }}">
+        <div>
+          <div class="rtitle">vs {{ $comparison->competitor_domain }}</div>
+          <div class="rmeta">{{ $comparison->created_at->format('j M Y, H:i') }} · {{ ucfirst($comparison->status) }}</div>
+        </div>
+        @if ($comparison->status === 'completed')
+          @php
+            $leadsThem = $comparison->leader() === 'us';
+          @endphp
+          <span class="badge {{ $leadsThem ? 'good' : 'fair' }}">{{ $leadsThem ? 'Ahead' : 'Behind' }}</span>
+        @elseif ($comparison->status === 'failed')
+          <span class="badge poor">Failed</span>
+        @else
+          <span class="badge unknown">—</span>
+        @endif
+      </a>
+    @empty
+      <div class="muted" style="margin-top:10px">No comparisons yet. Enter a competitor's domain above.</div>
+    @endforelse
+  </div>
+
+  <div class="card">
     <p class="subhead">Audit history</p>
 
     @php
@@ -128,63 +185,6 @@
       <div class="muted" style="margin-top:10px">No audits yet. Run the first one above.</div>
     @endforelse
     <div style="margin-top:16px">{{ $audits->links() }}</div>
-  </div>
-
-  <div class="card">
-    <p class="subhead">Content drafts</p>
-    <form method="POST" action="/sites/{{ $site->id }}/content" class="topic-form">
-      @csrf
-      <input type="text" name="topic" placeholder="Topic, e.g. &quot;why regular servicing matters&quot;" required maxlength="255">
-      <button class="btn btn-primary" type="submit">Generate draft</button>
-    </form>
-
-    @forelse ($content as $piece)
-      <a class="row" href="/content/{{ $piece->id }}">
-        <div>
-          <div class="rtitle">{{ $piece->title ?? $piece->topic }}</div>
-          <div class="rmeta">{{ $piece->created_at->format('j M Y, H:i') }} · {{ ucfirst($piece->status) }}</div>
-        </div>
-        @if ($piece->status === 'completed')
-          <span class="badge good">{{ $piece->word_count }} words</span>
-        @elseif ($piece->status === 'failed')
-          <span class="badge poor">Failed</span>
-        @else
-          <span class="badge unknown">—</span>
-        @endif
-      </a>
-    @empty
-      <div class="muted" style="margin-top:10px">No drafts yet. Enter a topic above to generate the first one.</div>
-    @endforelse
-  </div>
-
-  <div class="card">
-    <p class="subhead">Competitor comparison</p>
-    <form method="POST" action="/sites/{{ $site->id }}/competitors" class="topic-form">
-      @csrf
-      <input type="text" name="competitor_domain" placeholder="Competitor domain, e.g. example.co.uk" required maxlength="255">
-      <button class="btn btn-primary" type="submit">Compare</button>
-    </form>
-
-    @forelse ($competitors as $comparison)
-      <a class="row" href="/competitors/{{ $comparison->id }}">
-        <div>
-          <div class="rtitle">vs {{ $comparison->competitor_domain }}</div>
-          <div class="rmeta">{{ $comparison->created_at->format('j M Y, H:i') }} · {{ ucfirst($comparison->status) }}</div>
-        </div>
-        @if ($comparison->status === 'completed')
-          @php
-            $leadsThem = $comparison->leader() === 'us';
-          @endphp
-          <span class="badge {{ $leadsThem ? 'good' : 'fair' }}">{{ $leadsThem ? 'Ahead' : 'Behind' }}</span>
-        @elseif ($comparison->status === 'failed')
-          <span class="badge poor">Failed</span>
-        @else
-          <span class="badge unknown">—</span>
-        @endif
-      </a>
-    @empty
-      <div class="muted" style="margin-top:10px">No comparisons yet. Enter a competitor's domain above.</div>
-    @endforelse
   </div>
 </div>
 @endsection
