@@ -26,6 +26,11 @@
        never look like the same signal. */
     --brand:#E1691F;
     --brand-bright:#F0813C;
+    /* Back-compat aliases - earlier pages were built against these
+       names before the token system got a proper rename. Remove once
+       every view has been migrated off them. */
+    --lime:var(--brand);
+    --lime-dim:var(--brand-bright);
 
     /* Status - used for audit findings and site health only.
        Deliberately distinct from --brand so a warning chip is never
@@ -73,6 +78,9 @@
   .top-nav{ display:flex; gap:26px; align-items:center; font-size:var(--fs-sm); color:var(--grey); }
   .top-nav a{ text-decoration:none; }
   .top-nav a:hover{ color:var(--paper); }
+  .linklike{ background:none; border:0; color:var(--grey); font:inherit; font-size:var(--fs-sm);
+             cursor:pointer; padding:0; }
+  .linklike:hover{ color:var(--paper); }
 
   /* ---- Shared components every page can use without redefining ---- */
 
@@ -82,6 +90,7 @@
      more important than a plain list - a hero stat, a primary insight -
      not applied to every panel identically. */
   .card--raised{ background:var(--panel-raised); border-color:var(--border-strong); }
+  .card--accent{ border-left:3px solid var(--brand); }
 
   .btn{ display:inline-block; border:1px solid var(--border-strong); background:transparent;
         color:var(--paper); padding:10px 18px; border-radius:var(--radius-sm);
@@ -143,6 +152,10 @@
     @auth
     <nav class="top-nav">
       <a href="/dashboard">Sites</a>
+      <form method="POST" action="/logout" style="margin:0">
+        @csrf
+        <button type="submit" class="linklike">Log out</button>
+      </form>
     </nav>
     @endauth
   </div>

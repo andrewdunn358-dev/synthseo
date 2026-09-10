@@ -2,72 +2,81 @@
 @section('title', 'Sites — SynthSEO')
 
 @section('styles')
-  .wrap-pad{ padding:40px 32px 80px; }
-  .row-top{ display:flex; align-items:baseline; justify-content:space-between; gap:20px; flex-wrap:wrap; }
-  .muted{ color:var(--grey); }
-  .panel{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:22px; margin-top:22px; }
-  .site{ display:flex; align-items:center; justify-content:space-between; gap:16px;
-         padding:16px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; }
-  .site:last-child{ border-bottom:0; }
-  .site a.name{ font-weight:600; text-decoration:none; font-size:17px; }
-  .url{ color:var(--grey-dim); font-family:'IBM Plex Mono',monospace; font-size:13px; word-break:break-all; }
-  .score{ font-family:'IBM Plex Mono',monospace; font-weight:600; padding:4px 10px; border-radius:6px; font-size:14px; }
-  .good{ background:rgba(60,180,110,.14); color:#5FD39B; }
-  .fair{ background:rgba(225,105,31,.16); color:#F09150; }
-  .poor{ background:rgba(220,70,70,.16); color:#F08080; }
-  .unknown{ background:rgba(238,241,240,.07); color:var(--grey); }
+  .wrap-pad{ padding:var(--sp-7) 32px 80px; }
+
+  .summary{ display:flex; gap:var(--sp-6); flex-wrap:wrap; margin-top:var(--sp-3); }
+  .summary-item{ }
+  .summary-num{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:28px; line-height:1; }
+  .summary-num.poor{ color:var(--poor); }
+  .summary-label{ font-size:var(--fs-xs); color:var(--grey); margin-top:2px; }
+
+  .addform{ display:flex; gap:10px; flex-wrap:wrap; margin-top:var(--sp-3); }
   input[type=text],input[type=url]{ background:var(--ink); border:1px solid var(--border-strong); color:var(--paper);
-    padding:10px 12px; border-radius:7px; font:inherit; font-size:15px; min-width:220px; flex:1; }
-  button.primary{ background:var(--lime); color:#fff; border:0; padding:11px 20px; border-radius:7px;
-    font:inherit; font-weight:600; cursor:pointer; }
-  button.primary:hover{ background:var(--lime-dim); }
-  .addform{ display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
-  .flash{ background:rgba(60,180,110,.12); border:1px solid rgba(60,180,110,.3);
-    padding:11px 15px; border-radius:7px; margin-top:20px; font-size:14px; }
-  .err{ color:#F08080; font-size:13px; margin-top:8px; }
+    padding:10px 12px; border-radius:var(--radius-sm); font:inherit; font-size:var(--fs-base); min-width:220px; flex:1; }
+  .err{ color:var(--poor); font-size:var(--fs-sm); margin-top:8px; }
+
+  .site-row{ display:flex; align-items:center; justify-content:space-between; gap:16px;
+             padding:18px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; text-decoration:none; color:inherit; }
+  .site-row:last-child{ border-bottom:0; }
+  .site-row .name{ font-weight:600; font-size:var(--fs-md); }
+  .site-row .url{ color:var(--grey-dim); font-family:'IBM Plex Mono',monospace; font-size:var(--fs-xs); word-break:break-all; margin-top:2px; }
 @endsection
 
 @section('content')
 <div class="wrap wrap-pad">
-  <div class="row-top">
-    <h1>Sites</h1>
-    <form method="POST" action="/logout">@csrf<button class="primary" style="background:transparent;border:1px solid var(--border-strong)">Log out</button></form>
-  </div>
+  <h1>Sites</h1>
+
+  @if ($sites->isNotEmpty())
+    @php
+      $completed = $sites->filter(fn ($s) => $s->latestAudit?->status === 'completed');
+      $needsAttention = $completed->filter(fn ($s) => $s->latestAudit->issueCounts()['fail'] > 0)->count();
+    @endphp
+    <div class="summary">
+      <div class="summary-item">
+        <div class="summary-num">{{ $sites->count() }}</div>
+        <div class="summary-label">{{ \Illuminate\Support\Str::plural('site', $sites->count()) }} tracked</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-num {{ $needsAttention > 0 ? 'poor' : '' }}">{{ $needsAttention }}</div>
+        <div class="summary-label">need attention</div>
+      </div>
+    </div>
+  @endif
 
   @if (session('status'))<div class="flash">{{ session('status') }}</div>@endif
 
-  <div class="panel">
-    <strong>Add a site</strong>
+  <div class="card">
+    <p class="subhead">Add a site</p>
     <form method="POST" action="/sites" class="addform">
       @csrf
       <input type="text" name="name" placeholder="Client or site name" value="{{ old('name') }}" required>
       <input type="url" name="url" placeholder="https://example.co.uk" value="{{ old('url') }}" required>
-      <button class="primary" type="submit">Add site</button>
+      <button class="btn btn-primary" type="submit">Add site</button>
     </form>
     @error('name')<div class="err">{{ $message }}</div>@enderror
     @error('url')<div class="err">{{ $message }}</div>@enderror
   </div>
 
-  <div class="panel">
+  <div class="card">
     @forelse ($sites as $site)
-      <div class="site">
+      <a class="site-row" href="/sites/{{ $site->id }}">
         <div>
-          <a class="name" href="/sites/{{ $site->id }}">{{ $site->name }}</a>
+          <div class="name">{{ $site->name }}</div>
           <div class="url">{{ $site->url }}</div>
         </div>
         @if ($site->latestAudit && $site->latestAudit->status === 'completed')
           @php
             $c = $site->latestAudit->issueCounts();
           @endphp
-          <span class="score {{ $c['fail'] ? 'poor' : ($c['warn'] ? 'fair' : 'good') }}">
+          <span class="badge {{ $c['fail'] ? 'poor' : ($c['warn'] ? 'fair' : 'good') }}">
             {{ $c['fail'] }} to fix · {{ $c['warn'] }} to review
           </span>
         @elseif ($site->latestAudit)
-          <span class="score unknown">{{ ucfirst($site->latestAudit->status) }}</span>
+          <span class="badge unknown">{{ ucfirst($site->latestAudit->status) }}</span>
         @else
-          <span class="score unknown">not audited</span>
+          <span class="badge unknown">not audited</span>
         @endif
-      </div>
+      </a>
     @empty
       <div class="muted">No sites yet. Add one above and run its first audit.</div>
     @endforelse

@@ -128,7 +128,7 @@
        first" is worth more to a client than the raw findings list
        below it, which stays for anyone who wants the detail. --}}
   @if ($audit->status === 'completed')
-    <div class="card card--raised">
+    <div class="card card--raised card--accent">
       <p class="subhead">AI recommendations</p>
 
       @if ($audit->recommendations)
@@ -139,10 +139,11 @@
           <span class="muted">Writing the recommendations — this updates itself, no need to refresh.</span>
         </div>
       @else
+        <p class="muted" style="margin:0 0 16px">Turn the findings below into a short, prioritised action plan — written for someone who isn't an SEO specialist.</p>
         @if ($audit->recommendations_error)
           <div class="notice" style="margin-top:0">{{ $audit->recommendations_error }}</div>
         @endif
-        <form method="POST" action="/audits/{{ $audit->id }}/recommendations" style="margin-top:14px">
+        <form method="POST" action="/audits/{{ $audit->id }}/recommendations">
           @csrf
           <button class="btn btn-primary" type="submit">Get AI recommendations</button>
         </form>

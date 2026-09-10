@@ -11,59 +11,60 @@
 @endif
 
 @section('styles')
-  .wrap-pad{ padding:40px 32px 80px; }
-  .row-top{ display:flex; align-items:baseline; justify-content:space-between; gap:20px; flex-wrap:wrap; }
-  .muted{ color:var(--grey); }
-  .url{ color:var(--grey-dim); font-family:'IBM Plex Mono',monospace; font-size:13px; word-break:break-all; }
-  .panel{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:22px; margin-top:22px; }
-  .audit{ display:flex; align-items:center; justify-content:space-between; gap:16px;
-          padding:14px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; }
-  .audit:last-child{ border-bottom:0; }
-  .score{ font-family:'IBM Plex Mono',monospace; font-weight:600; padding:4px 10px; border-radius:6px; font-size:14px; }
-  .good{ background:rgba(60,180,110,.14); color:#5FD39B; }
-  .fair{ background:rgba(225,105,31,.16); color:#F09150; }
-  .poor{ background:rgba(220,70,70,.16); color:#F08080; }
-  .unknown{ background:rgba(238,241,240,.07); color:var(--grey); }
-  button.primary{ background:var(--lime); color:#fff; border:0; padding:11px 20px; border-radius:7px;
-    font:inherit; font-weight:600; cursor:pointer; }
-  button.primary:hover{ background:var(--lime-dim); }
-  a.back{ color:var(--grey); text-decoration:none; font-size:14px; }
-  .flash{ background:rgba(60,180,110,.12); border:1px solid rgba(60,180,110,.3);
-    padding:11px 15px; border-radius:7px; margin-top:20px; font-size:14px; }
+  .wrap-pad{ padding:var(--sp-7) 32px 80px; }
+  .row-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-top:var(--sp-3); }
+  a.back{ color:var(--grey); text-decoration:none; font-size:var(--fs-sm); }
+  a.back:hover{ color:var(--paper); }
+  .url{ color:var(--grey-dim); font-family:'IBM Plex Mono',monospace; font-size:var(--fs-xs); word-break:break-all; margin-top:2px; }
+
+  .freq-row{ margin-top:var(--sp-4); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .freq-row select{ background:var(--ink); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+                     padding:7px 10px; color:var(--paper); font:inherit; font-size:var(--fs-sm); }
+
+  .row{ display:flex; align-items:center; justify-content:space-between; gap:16px;
+        padding:14px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; text-decoration:none; color:inherit; }
+  .row:last-child{ border-bottom:0; }
+  .row .rtitle{ font-weight:600; }
+  .row .rmeta{ font-size:var(--fs-xs); color:var(--grey); margin-top:2px; }
+
+  .topic-form{ display:flex; gap:10px; flex-wrap:wrap; margin-top:var(--sp-3); margin-bottom:var(--sp-2); }
+  .topic-form input{ flex:1; min-width:240px; background:var(--ink); border:1px solid var(--border-strong);
+                      border-radius:var(--radius-sm); padding:11px 13px; color:var(--paper); font:inherit; }
+
+  .trend{ margin:14px 0 6px; }
+  .trend-meta{ font-size:var(--fs-2xs); display:flex; justify-content:space-between; margin-top:6px; }
 @endsection
 
 @section('content')
 <div class="wrap wrap-pad">
   <a class="back" href="/sites">← All sites</a>
-  <div class="row-top" style="margin-top:12px">
+  <div class="row-top">
     <div>
       <h1>{{ $site->name }}</h1>
       <div class="url">{{ $site->url }}</div>
     </div>
     <form method="POST" action="/sites/{{ $site->id }}/audits">
-      @csrf<button class="primary" type="submit">Run audit</button>
+      @csrf<button class="btn btn-primary" type="submit">Run audit</button>
     </form>
   </div>
 
-  <form method="POST" action="/sites/{{ $site->id }}/audit-frequency" style="margin-top:14px;display:flex;align-items:center;gap:10px">
+  <form method="POST" action="/sites/{{ $site->id }}/audit-frequency" class="freq-row">
     @csrf
-    <label class="muted" style="font-size:13px">Automatic audits:</label>
-    <select name="audit_frequency" onchange="this.form.submit()"
-      style="background:var(--ink);border:1px solid var(--border-strong);border-radius:6px;
-             padding:7px 10px;color:var(--paper);font:inherit;font-size:13px">
+    <label class="muted" style="font-size:var(--fs-sm)">Automatic audits:</label>
+    <select name="audit_frequency" onchange="this.form.submit()">
       <option value="off" @selected($site->audit_frequency === 'off')>Off</option>
       <option value="weekly" @selected($site->audit_frequency === 'weekly')>Weekly</option>
       <option value="monthly" @selected($site->audit_frequency === 'monthly')>Monthly</option>
     </select>
     @if ($site->audit_frequency !== 'off' && $site->next_audit_at)
-      <span class="muted" style="font-size:13px">Next: {{ $site->next_audit_at->format('j M, H:i') }}</span>
+      <span class="muted" style="font-size:var(--fs-sm)">Next: {{ $site->next_audit_at->format('j M, H:i') }}</span>
     @endif
   </form>
 
   @if (session('status'))<div class="flash">{{ session('status') }}</div>@endif
 
-  <div class="panel">
-    <strong>Audit history</strong>
+  <div class="card">
+    <p class="subhead">Audit history</p>
 
     @php
       // Oldest-to-newest for a left-to-right trend, current page only -
@@ -94,12 +95,12 @@
           return round($x, 1) . ',' . round($y, 1);
         })->implode(' ');
       @endphp
-      <div style="margin:14px 0 6px">
+      <div class="trend">
         <svg viewBox="0 0 {{ $w }} {{ $h }}" preserveAspectRatio="none" style="width:100%;height:48px;display:block">
-          <polyline points="{{ $points }}" fill="none" stroke="var(--lime)" stroke-width="1.6"
+          <polyline points="{{ $points }}" fill="none" stroke="var(--brand)" stroke-width="1.6"
             stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
         </svg>
-        <div class="muted" style="font-size:12px;display:flex;justify-content:space-between">
+        <div class="muted trend-meta">
           <span>{{ $failCounts->first() }} to fix on {{ $trend->first()->created_at->format('j M') }}</span>
           <span>{{ $failCounts->last() }} to fix on {{ $trend->last()->created_at->format('j M') }}</span>
         </div>
@@ -107,57 +108,50 @@
     @endif
 
     @forelse ($audits as $audit)
-      <div class="audit">
+      <a class="row" href="/audits/{{ $audit->id }}">
         <div>
-          <a href="/audits/{{ $audit->id }}" style="text-decoration:none;font-weight:600">
-            {{ $audit->created_at->format('j M Y, H:i') }}
-          </a>
-          <div class="muted" style="font-size:13px">{{ ucfirst($audit->status) }}</div>
+          <div class="rtitle">{{ $audit->created_at->format('j M Y, H:i') }}</div>
+          <div class="rmeta">{{ ucfirst($audit->status) }}</div>
         </div>
         @if ($audit->status === 'completed')
           @php
             $c = $audit->issueCounts();
           @endphp
-          <span class="score {{ $c['fail'] ? 'poor' : ($c['warn'] ? 'fair' : 'good') }}">
+          <span class="badge {{ $c['fail'] ? 'poor' : ($c['warn'] ? 'fair' : 'good') }}">
             {{ $c['fail'] }} to fix · {{ $c['warn'] }} to review
           </span>
         @else
-          <span class="score unknown">—</span>
+          <span class="badge unknown">—</span>
         @endif
-      </div>
+      </a>
     @empty
       <div class="muted" style="margin-top:10px">No audits yet. Run the first one above.</div>
     @endforelse
     <div style="margin-top:16px">{{ $audits->links() }}</div>
   </div>
 
-  <div class="panel">
-    <strong>Content drafts</strong>
-    <form method="POST" action="/sites/{{ $site->id }}/content" style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+  <div class="card">
+    <p class="subhead">Content drafts</p>
+    <form method="POST" action="/sites/{{ $site->id }}/content" class="topic-form">
       @csrf
-      <input type="text" name="topic" placeholder="Topic, e.g. &quot;why regular servicing matters&quot;"
-        required maxlength="255"
-        style="flex:1;min-width:240px;background:var(--ink);border:1px solid var(--border-strong);
-               border-radius:7px;padding:11px 13px;color:var(--paper);font:inherit">
-      <button class="primary" type="submit">Generate draft</button>
+      <input type="text" name="topic" placeholder="Topic, e.g. &quot;why regular servicing matters&quot;" required maxlength="255">
+      <button class="btn btn-primary" type="submit">Generate draft</button>
     </form>
 
     @forelse ($content as $piece)
-      <div class="audit">
+      <a class="row" href="/content/{{ $piece->id }}">
         <div>
-          <a href="/content/{{ $piece->id }}" style="text-decoration:none;font-weight:600">
-            {{ $piece->title ?? $piece->topic }}
-          </a>
-          <div class="muted" style="font-size:13px">{{ $piece->created_at->format('j M Y, H:i') }} · {{ ucfirst($piece->status) }}</div>
+          <div class="rtitle">{{ $piece->title ?? $piece->topic }}</div>
+          <div class="rmeta">{{ $piece->created_at->format('j M Y, H:i') }} · {{ ucfirst($piece->status) }}</div>
         </div>
         @if ($piece->status === 'completed')
-          <span class="score good">{{ $piece->word_count }} words</span>
+          <span class="badge good">{{ $piece->word_count }} words</span>
         @elseif ($piece->status === 'failed')
-          <span class="score poor">Failed</span>
+          <span class="badge poor">Failed</span>
         @else
-          <span class="score unknown">—</span>
+          <span class="badge unknown">—</span>
         @endif
-      </div>
+      </a>
     @empty
       <div class="muted" style="margin-top:10px">No drafts yet. Enter a topic above to generate the first one.</div>
     @endforelse
