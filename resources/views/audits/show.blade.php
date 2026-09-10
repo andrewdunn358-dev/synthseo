@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Audit — ' . $audit->site->name)
+@section('title', $audit->site->name . ' — audit — SynthSEO')
 
 {{-- Auto-refresh ONLY while there is something to wait for. The tag is
      absent entirely once the audit is finished, so a completed report
@@ -18,95 +18,79 @@
 @endif
 
 @section('styles')
-  .wrap-pad{ padding:40px 32px 80px; }
-  .row-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; }
-  .muted{ color:var(--grey); }
-  .url{ color:var(--grey-dim); font-family:'IBM Plex Mono',monospace; font-size:13px; word-break:break-all; }
-  .panel{ background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:22px; margin-top:22px; }
-  .counts{ display:flex; gap:10px; flex-wrap:wrap; }
-  .count{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:14px;
-          padding:8px 14px; border-radius:8px; white-space:nowrap; }
-  .lh{ display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; }
-  .lhcard{ flex:1 1 150px; background:var(--ink); border:1px solid var(--border);
-           border-radius:9px; padding:14px 16px; }
-  .lhnum{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:26px; line-height:1.1; }
-  .lhlabel{ font-size:12px; color:var(--grey); margin-top:4px; }
-  .g-good{ color:#5FD39B; } .g-fair{ color:#F09150; } .g-poor{ color:#F08080; } .g-unknown{ color:var(--grey); }
-  .vitals{ display:flex; gap:26px; flex-wrap:wrap; margin-top:16px;
-           font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--grey); }
-  .srctag{ font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--grey-dim);
+  .wrap-pad{ padding:var(--sp-7) 32px 80px; }
+  a.back{ color:var(--grey); text-decoration:none; font-size:var(--fs-sm); }
+  a.back:hover{ color:var(--paper); }
+
+  /* Headline leads with what was actually tested, the way a report
+     should - "Audit" on its own said nothing a URL doesn't say better. */
+  .report-head{ margin-top:var(--sp-3); }
+  .report-head .kicker{ font-size:var(--fs-sm); color:var(--grey); margin-bottom:2px; }
+  .report-head h1{ font-size:var(--fs-2xl); line-height:1.08; word-break:break-word; }
+  .report-meta{ display:flex; gap:var(--sp-5); flex-wrap:wrap; margin-top:var(--sp-3);
+                font-size:var(--fs-sm); color:var(--grey); }
+  .counts{ display:flex; gap:10px; flex-wrap:wrap; margin-top:var(--sp-4); }
+
+  /* Sentence-case subheadings carrying weight, not tracked-out capitals
+     doing the work with spacing instead of typography. */
+  .subhead{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:var(--fs-md);
+            margin:0 0 var(--sp-3); }
+
+  .vitals{ display:flex; gap:26px; flex-wrap:wrap; margin-top:var(--sp-5);
+           font-family:'IBM Plex Mono',monospace; font-size:var(--fs-sm); color:var(--grey); }
+  .srctag{ font-size:var(--fs-2xs); letter-spacing:.05em; color:var(--grey-dim);
            border:1px solid var(--border-strong); padding:2px 6px; border-radius:4px; margin-left:8px; }
-  .secthead{ font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--grey);
-             margin:0 0 4px; }
-  .good{ background:rgba(60,180,110,.14); color:#5FD39B; }
-  .fair{ background:rgba(225,105,31,.16); color:#F09150; }
-  .poor{ background:rgba(220,70,70,.16); color:#F08080; }
-  .unknown{ background:rgba(238,241,240,.07); color:var(--grey); }
+
   .find{ padding:16px 0; border-bottom:1px solid var(--border); }
   .find:last-child{ border-bottom:0; }
-  .tag{ font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
-        padding:3px 8px; border-radius:4px; margin-right:10px; }
-  .t-fail{ background:rgba(220,70,70,.16); color:#F08080; }
-  .t-warn{ background:rgba(225,105,31,.16); color:#F09150; }
-  .t-pass{ background:rgba(60,180,110,.14); color:#5FD39B; }
+  .tag{ font-size:11px; font-weight:600; padding:3px 8px; border-radius:4px; margin-right:10px; }
+  .t-fail{ background:rgba(240,100,90,.16); color:var(--poor); }
+  .t-warn{ background:rgba(240,166,62,.16); color:var(--fair); }
+  .t-pass{ background:rgba(79,214,156,.14); color:var(--good); }
+  .ftitle{ font-weight:600; }
+  .fdetail{ color:var(--grey); font-size:var(--fs-sm); margin-top:5px; }
+  .fvalue{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--grey-dim);
+           margin-top:7px; word-break:break-word; }
+
   .chiprow{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
   .chiprow:last-child{ margin-bottom:0; }
-  .chiplabel{ font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--grey-dim);
+  .chiplabel{ font-size:var(--fs-2xs); letter-spacing:.04em; color:var(--grey-dim);
               width:78px; flex-shrink:0; }
   .chip{ font-size:12.5px; padding:5px 10px; border-radius:14px; text-decoration:none;
          border:1px solid transparent; white-space:nowrap; }
-  .chip.c-fail{ background:rgba(220,70,70,.14); color:#F08080; border-color:rgba(220,70,70,.3); }
-  .chip.c-warn{ background:rgba(225,105,31,.14); color:#F09150; border-color:rgba(225,105,31,.3); }
-  .chip.c-pass{ background:rgba(60,180,110,.10); color:#5FD39B; border-color:rgba(60,180,110,.2); }
+  .chip.c-fail{ background:rgba(240,100,90,.14); color:var(--poor); border-color:rgba(240,100,90,.3); }
+  .chip.c-warn{ background:rgba(240,166,62,.14); color:var(--fair); border-color:rgba(240,166,62,.3); }
+  .chip.c-pass{ background:rgba(79,214,156,.10); color:var(--good); border-color:rgba(79,214,156,.2); }
   .chip:hover{ filter:brightness(1.15); }
-  .ftitle{ font-weight:600; }
-  .fdetail{ color:var(--grey); font-size:14px; margin-top:5px; }
-  .fvalue{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--grey-dim);
-           margin-top:7px; word-break:break-word; }
-  .stats{ display:flex; gap:28px; flex-wrap:wrap; margin-top:6px; font-size:14px; }
-  a.back{ color:var(--grey); text-decoration:none; font-size:14px; }
-  .notice{ background:rgba(225,105,31,.10); border:1px solid rgba(225,105,31,.28);
-           padding:13px 16px; border-radius:8px; margin-top:20px; font-size:14px; }
-  .flash{ background:rgba(60,180,110,.12); border:1px solid rgba(60,180,110,.3);
-    padding:11px 15px; border-radius:7px; margin-top:20px; font-size:14px; }
-  .waiting{ display:flex; align-items:center; gap:13px; }
-  .spinner{ width:16px; height:16px; flex:0 0 16px; border-radius:50%;
-    border:2px solid rgba(225,105,31,.25); border-top-color:var(--lime);
-    animation:spin .9s linear infinite; }
-  @keyframes spin{ to{ transform:rotate(360deg); } }
-  /* Respect the OS setting - a permanently spinning element is a real
-     problem for some people, and the text says everything the spinner
-     does. */
-  @media (prefers-reduced-motion: reduce){ .spinner{ animation:none; } }
-  .article{ font-size:15px; line-height:1.7; white-space:pre-wrap; }
+
+  .article{ font-size:var(--fs-base); line-height:1.7; white-space:pre-wrap; }
 @endsection
 
 @section('content')
 <div class="wrap wrap-pad">
   <a class="back" href="/sites/{{ $audit->site_id }}">← {{ $audit->site->name }}</a>
 
-  <div class="row-top" style="margin-top:12px">
-    <div>
-      <h1>Audit</h1>
-      <div class="url">{{ $audit->url }}</div>
-      <div class="stats muted">
-        <span>{{ $audit->created_at->format('j M Y, H:i') }}</span>
-        <span>{{ ucfirst($audit->status) }}</span>
-        @if ($audit->http_status)<span>HTTP {{ $audit->http_status }}</span>@endif
-        @if ($audit->response_ms)<span>{{ $audit->response_ms }} ms</span>@endif
-      </div>
+  <div class="report-head">
+    <div class="kicker muted">Audit · {{ $audit->created_at->format('j M Y, H:i') }}</div>
+    <h1>{{ $audit->url }}</h1>
+    <div class="report-meta">
+      <span>{{ ucfirst($audit->status) }}</span>
+      @if ($audit->http_status)<span>HTTP {{ $audit->http_status }}</span>@endif
+      @if ($audit->response_ms)<span>{{ $audit->response_ms }} ms response</span>@endif
     </div>
+
     {{-- The bare score out of 100 used to live here and told a reader
          nothing: it was our own invented weighting presented as a
          precise figure, and it moved between runs when response time
          crossed a threshold. Counts of what needs doing are honest and
-         immediately actionable. --}}
+         immediately actionable - still true here, deliberately not
+         turned into a fifth gauge below for the same reason. --}}
     @if ($audit->status === 'completed')
       @php($counts = $audit->issueCounts())
       <div class="counts">
-        <span class="count poor">{{ $counts['fail'] }} to fix</span>
-        <span class="count fair">{{ $counts['warn'] }} to review</span>
-        <span class="count good">{{ $counts['pass'] }} passing</span>
+        <span class="badge poor">{{ $counts['fail'] }} to fix</span>
+        <span class="badge fair">{{ $counts['warn'] }} to review</span>
+        <span class="badge good">{{ $counts['pass'] }} passing</span>
       </div>
     @endif
   </div>
@@ -142,8 +126,8 @@
        first" is worth more to a client than the raw findings list
        below it, which stays for anyone who wants the detail. --}}
   @if ($audit->status === 'completed')
-    <div class="panel">
-      <p class="secthead">AI recommendations</p>
+    <div class="card card--raised">
+      <p class="subhead">AI recommendations</p>
 
       @if ($audit->recommendations)
         <div class="article">{{ $audit->recommendations }}</div>
@@ -158,32 +142,43 @@
         @endif
         <form method="POST" action="/audits/{{ $audit->id }}/recommendations" style="margin-top:14px">
           @csrf
-          <button class="primary" type="submit"
-            style="background:var(--lime); color:#fff; border:0; padding:11px 20px; border-radius:7px; font:inherit; font-weight:600; cursor:pointer">
-            Get AI recommendations
-          </button>
+          <button class="btn btn-primary" type="submit">Get AI recommendations</button>
         </form>
       @endif
     </div>
   @endif
 
-  {{-- Google's own numbers, labelled as Google's. For a client report
-       "Google scores your performance 86" carries weight that our own
-       figure never could - which is exactly why these are shown
-       separately from our findings rather than blended into one score. --}}
+  {{-- Google's own numbers, labelled as Google's, shown as real gauges -
+       the same visual language PageSpeed Insights itself uses. For a
+       client report "Google scores your performance 86" carries weight
+       our own figure never could, which is exactly why these stay
+       separate from our findings rather than blended into one score. --}}
   @if ($audit->hasLighthouse())
-    <div class="panel">
-      <p class="secthead">Google Lighthouse</p>
-      <div class="lh">
+    <div class="card">
+      <p class="subhead">Google Lighthouse</p>
+      <div class="gauges">
         @foreach ([
           'Performance' => $audit->lh_performance,
           'SEO' => $audit->lh_seo,
           'Accessibility' => $audit->lh_accessibility,
           'Best practices' => $audit->lh_best_practices,
         ] as $label => $value)
-          <div class="lhcard">
-            <div class="lhnum g-{{ \App\Models\Audit::lighthouseBand($value) }}">{{ $value !== null ? $value : '—' }}</div>
-            <div class="lhlabel">{{ $label }}</div>
+          @php
+            $band = \App\Models\Audit::lighthouseBand($value);
+            $r = 46; $circumference = 2 * M_PI * $r;
+            $pct = $value !== null ? max(0, min(100, $value)) : 0;
+            $offset = $circumference * (1 - $pct / 100);
+          @endphp
+          <div class="gauge-card">
+            <div class="gauge">
+              <svg viewBox="0 0 104 104">
+                <circle class="gauge-track" cx="52" cy="52" r="{{ $r }}"/>
+                <circle class="gauge-fill {{ $band }}" cx="52" cy="52" r="{{ $r }}"
+                  stroke-dasharray="{{ $circumference }}" stroke-dashoffset="{{ $offset }}"/>
+              </svg>
+              <div class="gauge-value">{{ $value !== null ? $value : '—' }}</div>
+            </div>
+            <div class="gauge-label">{{ $label }}</div>
           </div>
         @endforeach
       </div>
@@ -214,8 +209,8 @@
        past everything else to find one pass among fifteen. Each chip
        jumps to its full entry below. --}}
   @if ($findings->isNotEmpty())
-    <div class="panel">
-      <p class="secthead">All checks</p>
+    <div class="card">
+      <p class="subhead">All checks</p>
       @foreach ($findings->groupBy('source') as $source => $group)
         <div class="chiprow">
           <span class="chiplabel">{{ $source === 'lighthouse' ? 'Lighthouse' : 'On-page' }}</span>
@@ -228,7 +223,7 @@
   @endif
 
   @if ($findings->isNotEmpty())
-    <div class="panel">
+    <div class="card">
       @foreach ($findings as $finding)
         <div class="find" id="check-{{ $finding->id }}">
           <span class="tag t-{{ $finding->status }}">{{ $finding->status }}</span>
@@ -240,7 +235,7 @@
       @endforeach
     </div>
   @elseif (! in_array($audit->status, ['queued', 'running']))
-    <div class="panel muted">No findings were recorded for this audit.</div>
+    <div class="card muted">No findings were recorded for this audit.</div>
   @endif
 </div>
 @endsection
