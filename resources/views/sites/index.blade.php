@@ -56,7 +56,9 @@
           <div class="url">{{ $site->url }}</div>
         </div>
         @if ($site->latestAudit && $site->latestAudit->status === 'completed')
-          @php($c = $site->latestAudit->issueCounts())
+          @php
+            $c = $site->latestAudit->issueCounts();
+          @endphp
           <span class="score {{ $c['fail'] ? 'poor' : ($c['warn'] ? 'fair' : 'good') }}">
             {{ $c['fail'] }} to fix · {{ $c['warn'] }} to review
           </span>

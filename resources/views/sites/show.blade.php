@@ -115,7 +115,9 @@
           <div class="muted" style="font-size:13px">{{ ucfirst($audit->status) }}</div>
         </div>
         @if ($audit->status === 'completed')
-          @php($c = $audit->issueCounts())
+          @php
+            $c = $audit->issueCounts();
+          @endphp
           <span class="score {{ $c['fail'] ? 'poor' : ($c['warn'] ? 'fair' : 'good') }}">
             {{ $c['fail'] }} to fix · {{ $c['warn'] }} to review
           </span>

@@ -86,7 +86,9 @@
          immediately actionable - still true here, deliberately not
          turned into a fifth gauge below for the same reason. --}}
     @if ($audit->status === 'completed')
-      @php($counts = $audit->issueCounts())
+      @php
+        $counts = $audit->issueCounts();
+      @endphp
       <div class="counts">
         <span class="badge poor">{{ $counts['fail'] }} to fix</span>
         <span class="badge fair">{{ $counts['warn'] }} to review</span>
