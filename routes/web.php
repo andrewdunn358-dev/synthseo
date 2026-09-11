@@ -34,6 +34,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/sites/{site}/content', [ContentController::class, 'store']);
     Route::get('/content/{contentPiece}', [ContentController::class, 'show']);
 
+    Route::get('/sites/{site}/competitors/discover', [CompetitorController::class, 'discover']);
     Route::post('/sites/{site}/competitors', [CompetitorController::class, 'store']);
     Route::get('/competitors/{comparison}', [CompetitorController::class, 'show']);
 });

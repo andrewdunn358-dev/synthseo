@@ -31,6 +31,8 @@ class DataForSeoService
 
     private const ENDPOINT = 'dataforseo_labs/google/domain_rank_overview/live';
 
+    private const COMPETITORS_ENDPOINT = 'dataforseo_labs/google/competitors_domain/live';
+
     private const TIMEOUT = 30;
 
     public function __construct(
@@ -139,6 +141,86 @@ class DataForSeoService
         $domain = preg_replace('#^www\.#i', '', $domain);
 
         return rtrim(explode('/', $domain)[0], '/');
+    }
+
+    /**
+     * Finds domains competing with $domain for the same organic
+     * keywords - the actual "who is this business up against" answer,
+     * rather than requiring someone to already know a competitor's
+     * name before this feature does anything.
+     *
+     * Synchronous rather than queued - unlike the audit/comparison
+     * jobs, this is a "browse a few options and pick one" interaction,
+     * not a result someone returns to later. Waiting a few seconds for
+     * suggestions is the expected shape of that interaction; the queue
+     * machinery would just add a page reload in the way of it.
+     *
+     * exclude_top_domains=true drops Wikipedia/Amazon/Google/etc. from
+     * results - technically "competitors" by keyword overlap, never
+     * useful ones for a local business trying to find who it is
+     * actually up against.
+     *
+     * @return array{domains:array<int,array{domain:string,traffic:?int,keywords:?int,intersections:?int}>,error:?string}
+     */
+    public function findCompetitors(string $domain, int $limit = 5): array
+    {
+        $empty = ['domains' => [], 'error' => null];
+
+        if (! $this->login || ! $this->password) {
+            return array_merge($empty, [
+                'error' => 'No DataForSEO credentials configured. Add DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD in .env.',
+            ]);
+        }
+
+        $target = self::normalizeDomain($domain);
+        $base = config('services.dataforseo.sandbox', true) ? self::SANDBOX_BASE : self::LIVE_BASE;
+
+        try {
+            $response = Http::withBasicAuth($this->login, $this->password)
+                ->timeout(self::TIMEOUT)
+                ->post($base . self::COMPETITORS_ENDPOINT, [
+                    [
+                        'target' => $target,
+                        'location_name' => 'United Kingdom',
+                        'language_name' => 'English',
+                        'limit' => $limit,
+                        'exclude_top_domains' => true,
+                    ],
+                ]);
+        } catch (\Throwable $e) {
+            Log::warning('DataForSEO competitor discovery failed', ['domain' => $target, 'error' => $e->getMessage()]);
+
+            return array_merge($empty, ['error' => 'The request did not complete (it may have timed out).']);
+        }
+
+        if (! $response->successful()) {
+            return array_merge($empty, ['error' => $this->readableError($response->status())]);
+        }
+
+        $task = $response->json('tasks.0');
+
+        if (! $task || ($task['status_code'] ?? null) !== 20000) {
+            return array_merge($empty, ['error' => $task['status_message'] ?? 'DataForSEO returned an error.']);
+        }
+
+        $items = $task['result'][0]['items'] ?? [];
+
+        $domains = array_values(array_filter(array_map(function (array $item) {
+            if (! isset($item['domain'])) {
+                return null;
+            }
+
+            $organic = $item['full_domain_metrics']['organic'] ?? [];
+
+            return [
+                'domain' => $item['domain'],
+                'traffic' => isset($organic['etv']) ? (int) round($organic['etv']) : null,
+                'keywords' => $organic['count'] ?? null,
+                'intersections' => $item['intersections'] ?? null,
+            ];
+        }, $items)));
+
+        return ['domains' => $domains, 'error' => null];
     }
 
     private function readableError(int $status): string
