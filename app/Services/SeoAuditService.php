@@ -188,11 +188,26 @@ class SeoAuditService
         // Server response time only - not full page load. Labelled that
         // way in the detail so nobody reads this as a Core Web Vitals
         // number, which it is not.
+        //
+        // Measured by an identified bot (see the User-Agent this
+        // service sends), not a real browser - and a real test against
+        // a live site proved the two can differ enormously (0.7s for a
+        // browser UA, 4.3s for this exact bot UA, same URL, seconds
+        // apart). A slow figure here can mean a genuinely slow server,
+        // but it can just as easily mean security software or a
+        // firewall specifically slowing down or challenging automated
+        // requests - which would very plausibly do the same thing to
+        // Googlebot, a real and separate SEO problem worth naming
+        // rather than silently folding into "your server is slow".
+        $caveat = ' This was measured by an identified bot, not a real visitor\'s browser - if this number seems '
+            . 'surprisingly high, security software treating automated requests differently (which can also slow '
+            . 'down Google\'s own crawler) is a common cause, not just server capacity.';
+
         return $ms <= 3000
             ? $this->warn('response_time', 'medium', 'Server response is slow',
-                "The server took {$ms} ms to respond. This is server time only, not full page load.", "{$ms} ms")
+                "The server took {$ms} ms to respond. This is server time only, not full page load.{$caveat}", "{$ms} ms")
             : $this->fail('response_time', 'medium', 'Server response is very slow',
-                "The server took {$ms} ms to respond. This is server time only, not full page load.", "{$ms} ms");
+                "The server took {$ms} ms to respond. This is server time only, not full page load.{$caveat}", "{$ms} ms");
     }
 
     private function checkTitle(DOMXPath $xpath): array
