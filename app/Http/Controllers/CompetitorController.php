@@ -21,6 +21,22 @@ class CompetitorController extends Controller
         ]);
     }
 
+    public function search(Request $request, Site $site, DataForSeoService $dataForSeo)
+    {
+        $data = $request->validate([
+            'query' => ['required', 'string', 'max:255'],
+        ]);
+
+        $result = $dataForSeo->searchByQuery($data['query'], $site->url);
+
+        return view('competitors.search', [
+            'site' => $site,
+            'query' => $data['query'],
+            'results' => $result['results'],
+            'error' => $result['error'],
+        ]);
+    }
+
     public function store(Request $request, Site $site)
     {
         $data = $request->validate([

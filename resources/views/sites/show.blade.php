@@ -100,6 +100,11 @@
       <input type="text" name="competitor_domain" placeholder="Competitor domain, e.g. example.co.uk" required maxlength="255">
       <button class="btn btn-primary" type="submit">Compare</button>
     </form>
+    <form method="POST" action="/sites/{{ $site->id }}/competitors/search" class="topic-form" style="margin-top:10px">
+      @csrf
+      <input type="text" name="query" placeholder="Or search what a customer would type, e.g. &quot;IT support North Shields&quot;" required maxlength="255">
+      <button class="btn" type="submit">Search Google</button>
+    </form>
 
     @forelse ($competitors as $comparison)
       <a class="row" href="/competitors/{{ $comparison->id }}">

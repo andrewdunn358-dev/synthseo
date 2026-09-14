@@ -33,6 +33,8 @@ class DataForSeoService
 
     private const COMPETITORS_ENDPOINT = 'dataforseo_labs/google/competitors_domain/live';
 
+    private const SERP_ENDPOINT = 'serp/google/organic/live/advanced';
+
     private const TIMEOUT = 30;
 
     public function __construct(
@@ -229,6 +231,103 @@ class DataForSeoService
         }, $items)));
 
         return ['domains' => $domains, 'error' => null];
+    }
+
+    /**
+     * Finds who currently ranks in real Google results for a specific
+     * search phrase - directly answers "who shows up when a customer
+     * actually searches this," rather than depending on the target
+     * site's own keyword history the way findCompetitors() does.
+     *
+     * This is the fix for the "garbage in, garbage out" problem a
+     * low-traffic site hits with keyword-overlap discovery: a site
+     * with almost no rankings of its own has nothing for that
+     * algorithm to work from, but a live search for "IT support North
+     * Shields" works identically regardless of how established the
+     * client's own site is - it queries Google directly, not the
+     * client's footprint.
+     *
+     * @return array{results:array<int,array{domain:string,title:string,rank:int}>,error:?string}
+     */
+    public function searchByQuery(string $query, ?string $excludeDomain = null): array
+    {
+        $empty = ['results' => [], 'error' => null];
+
+        if (! $this->login || ! $this->password) {
+            return array_merge($empty, [
+                'error' => 'No DataForSEO credentials configured. Add DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD in .env.',
+            ]);
+        }
+
+        $base = config('services.dataforseo.sandbox', true) ? self::SANDBOX_BASE : self::LIVE_BASE;
+
+        try {
+            $response = Http::withBasicAuth($this->login, $this->password)
+                ->timeout(self::TIMEOUT)
+                ->post($base . self::SERP_ENDPOINT, [
+                    [
+                        'keyword' => $query,
+                        'location_name' => 'United Kingdom',
+                        'language_code' => 'en',
+                        'device' => 'desktop',
+                    ],
+                ]);
+        } catch (\Throwable $e) {
+            Log::warning('DataForSEO SERP search failed', ['query' => $query, 'error' => $e->getMessage()]);
+
+            return array_merge($empty, ['error' => 'The request did not complete (it may have timed out).']);
+        }
+
+        if (! $response->successful()) {
+            return array_merge($empty, ['error' => $this->readableError($response->status())]);
+        }
+
+        $task = $response->json('tasks.0');
+
+        if (! $task || ($task['status_code'] ?? null) !== 20000) {
+            return array_merge($empty, ['error' => $task['status_message'] ?? 'DataForSEO returned an error.']);
+        }
+
+        $items = $task['result'][0]['items'] ?? [];
+        $excludeDomain = $excludeDomain ? self::normalizeDomain($excludeDomain) : null;
+
+        // Google's SERP mixes organic results with ads, People Also
+        // Ask, featured snippets, etc. in one items array - only
+        // "organic" is a real competitor ranking, everything else is
+        // noise for this purpose. Deduped by domain since the same
+        // site can legitimately hold more than one organic position.
+        $seen = [];
+        $results = [];
+
+        foreach ($items as $item) {
+            if (($item['type'] ?? null) !== 'organic' || ! isset($item['domain'])) {
+                continue;
+            }
+
+            $domain = $item['domain'];
+
+            if ($excludeDomain && strcasecmp($domain, $excludeDomain) === 0) {
+                continue;
+            }
+
+            if (isset($seen[$domain])) {
+                continue;
+            }
+
+            $seen[$domain] = true;
+
+            $results[] = [
+                'domain' => $domain,
+                'title' => $item['title'] ?? $domain,
+                'rank' => $item['rank_absolute'] ?? count($results) + 1,
+            ];
+
+            if (count($results) >= 10) {
+                break;
+            }
+        }
+
+        return ['results' => $results, 'error' => null];
     }
 
     private function readableError(int $status): string
