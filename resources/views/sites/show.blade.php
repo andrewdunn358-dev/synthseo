@@ -114,7 +114,6 @@
     <div class="card">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap">
         <p class="subhead" style="margin:0">Competitor comparison</p>
-        <a class="btn" href="/sites/{{ $site->id }}/competitors/discover">Find competitors automatically</a>
       </div>
       <form method="POST" action="/sites/{{ $site->id }}/competitors" class="topic-form">
         @csrf

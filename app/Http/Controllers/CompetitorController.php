@@ -10,17 +10,6 @@ use Illuminate\Http\Request;
 
 class CompetitorController extends Controller
 {
-    public function discover(Site $site, DataForSeoService $dataForSeo)
-    {
-        $result = $dataForSeo->findCompetitors($site->url);
-
-        return view('competitors.discover', [
-            'site' => $site,
-            'suggestions' => $result['domains'],
-            'error' => $result['error'],
-        ]);
-    }
-
     public function search(Request $request, Site $site, DataForSeoService $dataForSeo)
     {
         $data = $request->validate([

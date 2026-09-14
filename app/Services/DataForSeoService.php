@@ -31,8 +31,6 @@ class DataForSeoService
 
     private const ENDPOINT = 'dataforseo_labs/google/domain_rank_overview/live';
 
-    private const COMPETITORS_ENDPOINT = 'dataforseo_labs/google/competitors_domain/live';
-
     private const SERP_ENDPOINT = 'serp/google/organic/live/advanced';
 
     private const TIMEOUT = 30;
@@ -146,103 +144,16 @@ class DataForSeoService
     }
 
     /**
-     * Finds domains competing with $domain for the same organic
-     * keywords - the actual "who is this business up against" answer,
-     * rather than requiring someone to already know a competitor's
-     * name before this feature does anything.
-     *
-     * Synchronous rather than queued - unlike the audit/comparison
-     * jobs, this is a "browse a few options and pick one" interaction,
-     * not a result someone returns to later. Waiting a few seconds for
-     * suggestions is the expected shape of that interaction; the queue
-     * machinery would just add a page reload in the way of it.
-     *
-     * exclude_top_domains=true drops Wikipedia/Amazon/Google/etc. from
-     * results - technically "competitors" by keyword overlap, never
-     * useful ones for a local business trying to find who it is
-     * actually up against.
-     *
-     * @return array{domains:array<int,array{domain:string,traffic:?int,keywords:?int,intersections:?int}>,error:?string}
-     */
-    public function findCompetitors(string $domain, int $limit = 5): array
-    {
-        $empty = ['domains' => [], 'error' => null];
-
-        if (! $this->login || ! $this->password) {
-            return array_merge($empty, [
-                'error' => 'No DataForSEO credentials configured. Add DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD in .env.',
-            ]);
-        }
-
-        $target = self::normalizeDomain($domain);
-        $base = config('services.dataforseo.sandbox', true) ? self::SANDBOX_BASE : self::LIVE_BASE;
-
-        try {
-            $response = Http::withBasicAuth($this->login, $this->password)
-                ->timeout(self::TIMEOUT)
-                ->post($base . self::COMPETITORS_ENDPOINT, [
-                    [
-                        'target' => $target,
-                        'location_name' => 'United Kingdom',
-                        'language_name' => 'English',
-                        'limit' => $limit,
-                        'exclude_top_domains' => true,
-                    ],
-                ]);
-        } catch (\Throwable $e) {
-            Log::warning('DataForSEO competitor discovery failed', ['domain' => $target, 'error' => $e->getMessage()]);
-
-            return array_merge($empty, ['error' => 'The request did not complete (it may have timed out).']);
-        }
-
-        if (! $response->successful()) {
-            return array_merge($empty, ['error' => $this->readableError($response->status())]);
-        }
-
-        $task = $response->json('tasks.0');
-
-        if (! $task || ($task['status_code'] ?? null) !== 20000) {
-            return array_merge($empty, ['error' => $task['status_message'] ?? 'DataForSEO returned an error.']);
-        }
-
-        $items = $task['result'][0]['items'] ?? [];
-
-        $domains = array_values(array_filter(array_map(function (array $item) use ($target) {
-            if (! isset($item['domain'])) {
-                return null;
-            }
-
-            // DataForSEO can include the target itself in results (it
-            // trivially "overlaps" with all its own keywords) - never
-            // a competitor of itself, so filtered out here rather than
-            // trusting the API to exclude what should be obvious.
-            if (strcasecmp($item['domain'], $target) === 0) {
-                return null;
-            }
-
-            $organic = $item['full_domain_metrics']['organic'] ?? [];
-
-            return [
-                'domain' => $item['domain'],
-                'traffic' => isset($organic['etv']) ? (int) round($organic['etv']) : null,
-                'keywords' => $organic['count'] ?? null,
-                'intersections' => $item['intersections'] ?? null,
-            ];
-        }, $items)));
-
-        return ['domains' => $domains, 'error' => null];
-    }
-
-    /**
      * Finds who currently ranks in real Google results for a specific
      * search phrase - directly answers "who shows up when a customer
-     * actually searches this," rather than depending on the target
-     * site's own keyword history the way findCompetitors() does.
-     *
-     * This is the fix for the "garbage in, garbage out" problem a
-     * low-traffic site hits with keyword-overlap discovery: a site
-     * with almost no rankings of its own has nothing for that
-     * algorithm to work from, but a live search for "IT support North
+     * actually searches this." Deliberately the only competitor
+     * discovery method left in this service: an earlier keyword-overlap
+     * approach (competitors_domain) was tried and removed - it depends
+     * on the target site's own ranking history, so a low-traffic site
+     * produces coincidental noise (a dictionary site, a government
+     * company registry) rather than real competitors. This one queries
+     * Google directly and never has that problem, regardless of how
+     * established the client's own site is.
      * Shields" works identically regardless of how established the
      * client's own site is - it queries Google directly, not the
      * client's footprint.
