@@ -72,8 +72,14 @@ class AuditController extends Controller
         $pdf = Pdf::loadView('audits.pdf', compact('audit', 'findings'))
             ->setPaper('a4');
 
-        $filename = 'synthseo-audit-' . $audit->site->name . '-' . $audit->created_at->format('Y-m-d') . '.pdf';
-        $filename = preg_replace('/[^A-Za-z0-9\-]+/', '-', $filename);
+        // Only the site name is sanitised, not the whole filename - the
+        // date and ".pdf" are already known-safe characters, and
+        // running the same "strip anything risky" regex over the
+        // literal ".pdf" extension was stripping the dot along with
+        // everything else, saving every file as "...-pdf" with no
+        // real extension at all.
+        $safeName = preg_replace('/[^A-Za-z0-9\-]+/', '-', $audit->site->name);
+        $filename = 'synthseo-audit-' . $safeName . '-' . $audit->created_at->format('Y-m-d') . '.pdf';
 
         return $pdf->download($filename);
     }
