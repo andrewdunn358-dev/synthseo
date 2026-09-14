@@ -92,6 +92,41 @@ class ClaudeContentService
     }
 
     /**
+     * Reads a site's own homepage content and returns a short phrase
+     * describing what the business actually does - "estate agents",
+     * "garage MOT and servicing", "managed IT support" - suitable for
+     * feeding straight into a search query. This is deliberately the
+     * only thing inferred automatically here; a business's *location*
+     * is set by hand on the site (see the migration's doc comment) for
+     * the same reason `host` is - not reliably extractable from a
+     * homepage, and Frankie already knows the answer.
+     *
+     * Kept to a strict few words on purpose: the caller builds a search
+     * query as "{category} {location}", and a rambling category would
+     * make a worse query than a precise one.
+     *
+     * @return array{category:?string,error:?string}
+     */
+    public function inferBusinessCategory(string $siteName, string $pageText): array
+    {
+        $empty = ['category' => null, 'error' => null];
+
+        $result = $this->callClaude($this->businessCategoryPrompt($siteName, $pageText), 32);
+
+        if ($result['error']) {
+            return array_merge($empty, ['error' => $result['error']]);
+        }
+
+        $category = trim($result['text'], " \t\n\r\0\x0B\"'.");
+
+        if ($category === '') {
+            return array_merge($empty, ['error' => 'Could not determine what kind of business this site is for.']);
+        }
+
+        return ['category' => $category, 'error' => null];
+    }
+
+    /**
      * Turns an audit's failing/warning findings into a short, prioritised
      * plain-English action plan. Deliberately NOT run automatically with
      * every audit - see the migration's doc comment - so this is only
@@ -232,6 +267,22 @@ class ClaudeContentService
         "check out our amazing services!". Output only the caption
         text itself, nothing else - no explanation, no options, no
         quotation marks around it.
+        PROMPT;
+    }
+
+    private function businessCategoryPrompt(string $siteName, string $pageText): string
+    {
+        return <<<PROMPT
+        Here is text from {$siteName}'s own website:
+
+        {$pageText}
+
+        In 2-5 words, what kind of business is this? Answer in the
+        form a customer would type into Google when looking for this
+        kind of business - e.g. "estate agents", "garage MOT and
+        servicing", "managed IT support". Output only that phrase,
+        nothing else - no explanation, no punctuation, no quotation
+        marks.
         PROMPT;
     }
 

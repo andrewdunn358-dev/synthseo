@@ -9,7 +9,7 @@ class Site extends Model
 {
     use BelongsToAccount;
 
-    protected $fillable = ['account_id', 'name', 'url', 'audit_frequency', 'next_audit_at', 'cms', 'host'];
+    protected $fillable = ['account_id', 'name', 'url', 'audit_frequency', 'next_audit_at', 'cms', 'host', 'location'];
 
     protected function casts(): array
     {

@@ -62,11 +62,13 @@
 
   {{-- CMS is auto-detected from the last audit crawl (see
        SeoAuditService::detectCms) - shown, not editable, since it's a
-       fact about the site, not a preference. Host is set by hand:
-       hosting providers aren't reliably detectable from outside, and
-       this is one field to fill in rather than infrastructure to
-       build for something already known. Both feed the AI
-       recommendations prompt so advice can be platform-specific. Kept
+       fact about the site, not a preference. Host and location are
+       both set by hand: neither is reliably detectable from outside
+       (hosting providers aren't visible in page content; a business's
+       actual town is often only on a Contact page, or not stated at
+       all), and Frankie already knows both answers. Host feeds the AI
+       recommendations prompt so advice can be platform-specific;
+       location feeds the one-click competitor lookup below. Kept
        outside the tabs - it's site-level information, not specific to
        either SEO or marketing work. --}}
   <form method="POST" action="/sites/{{ $site->id }}/host" class="freq-row">
@@ -79,6 +81,10 @@
     <input type="text" name="host" value="{{ $site->host }}" placeholder="e.g. 20i, SiteGround, Cloudways"
       style="background:var(--ink); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
              padding:6px 10px; color:var(--paper); font:inherit; font-size:var(--fs-sm); width:180px">
+    <label class="muted" style="font-size:var(--fs-sm)">Location:</label>
+    <input type="text" name="location" value="{{ $site->location }}" placeholder="e.g. North Shields"
+      style="background:var(--ink); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+             padding:6px 10px; color:var(--paper); font:inherit; font-size:var(--fs-sm); width:150px">
     <button class="btn" type="submit" style="padding:7px 14px; font-size:var(--fs-sm)">Save</button>
   </form>
 
@@ -114,16 +120,21 @@
     <div class="card">
       <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap">
         <p class="subhead" style="margin:0">Competitor comparison</p>
+        <a class="btn btn-primary" href="/sites/{{ $site->id }}/competitors/lookup">Look up competitors</a>
       </div>
-      <form method="POST" action="/sites/{{ $site->id }}/competitors" class="topic-form">
+      <p class="muted" style="margin:10px 0 0; font-size:var(--fs-sm)">
+        Reads {{ $site->name }}'s own site to work out what kind of business it is, then searches live results for
+        that plus its location. Needs a location set above first.
+      </p>
+      <form method="POST" action="/sites/{{ $site->id }}/competitors/search" class="topic-form">
         @csrf
-        <input type="text" name="competitor_domain" placeholder="Competitor domain, e.g. example.co.uk" required maxlength="255">
-        <button class="btn btn-primary" type="submit">Compare</button>
+        <input type="text" name="query" placeholder="Or search a specific phrase yourself, e.g. &quot;IT support North Shields&quot;" required maxlength="255">
+        <button class="btn" type="submit">Search</button>
       </form>
-      <form method="POST" action="/sites/{{ $site->id }}/competitors/search" class="topic-form" style="margin-top:10px">
+      <form method="POST" action="/sites/{{ $site->id }}/competitors" class="topic-form" style="margin-top:10px">
         @csrf
-        <input type="text" name="query" placeholder="Or search what a customer would type, e.g. &quot;IT support North Shields&quot;" required maxlength="255">
-        <button class="btn" type="submit">Search live results</button>
+        <input type="text" name="competitor_domain" placeholder="Or compare a domain you already know, e.g. example.co.uk" required maxlength="255">
+        <button class="btn" type="submit">Compare</button>
       </form>
 
       @forelse ($competitors as $comparison)

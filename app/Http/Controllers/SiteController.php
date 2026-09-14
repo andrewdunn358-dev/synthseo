@@ -70,10 +70,11 @@ class SiteController extends Controller
     {
         $data = $request->validate([
             'host' => ['nullable', 'string', 'max:255'],
+            'location' => ['nullable', 'string', 'max:255'],
         ]);
 
         $site->update($data);
 
-        return redirect('/sites/' . $site->id)->with('status', 'Hosting provider updated.');
+        return redirect('/sites/' . $site->id)->with('status', 'Site details updated.');
     }
 }

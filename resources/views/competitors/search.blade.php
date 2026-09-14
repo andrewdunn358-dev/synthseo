@@ -21,11 +21,15 @@
   <a class="back" href="/sites/{{ $site->id }}">← {{ $site->name }}</a>
 
   <div style="margin-top:12px">
-    <h1>Who ranks for "{{ $query }}"?</h1>
-    <p class="muted" style="margin-top:8px; font-size:var(--fs-base)">
-      Live search results for that phrase right now, not a lookup based on {{ $site->name }}'s own ranking history -
-      this works the same whether {{ $site->name }} has an established search presence or none at all.
-    </p>
+    @if ($query)
+      <h1>Who ranks for "{{ $query }}"?</h1>
+      <p class="muted" style="margin-top:8px; font-size:var(--fs-base)">
+        Live search results for that phrase right now, not a lookup based on {{ $site->name }}'s own ranking history -
+        this works the same whether {{ $site->name }} has an established search presence or none at all.
+      </p>
+    @else
+      <h1>Couldn't look up competitors</h1>
+    @endif
   </div>
 
   @if ($error)
