@@ -125,6 +125,10 @@
 
       @if ($audit->recommendations)
         <div class="article">{{ $audit->recommendations }}</div>
+        <form method="POST" action="/audits/{{ $audit->id }}/recommendations" style="margin-top:14px">
+          @csrf
+          <button class="btn" type="submit">Regenerate</button>
+        </form>
       @elseif ($audit->isRecommendationsPending())
         <div class="waiting">
           <span class="spinner" aria-hidden="true"></span>

@@ -41,7 +41,17 @@ class AuditController extends Controller
 
     public function recommend(Audit $audit)
     {
-        $audit->update(['recommendations_status' => 'queued']);
+        // Clearing the old text (not just resetting status) matters for
+        // regeneration specifically - the view shows existing
+        // recommendations text before it checks whether generation is
+        // pending, so leaving stale text in place would mean a
+        // regenerate click silently kept showing the old advice with
+        // no visible sign anything was happening.
+        $audit->update([
+            'recommendations_status' => 'queued',
+            'recommendations' => null,
+            'recommendations_error' => null,
+        ]);
 
         GenerateAuditRecommendations::dispatch($audit->id);
 

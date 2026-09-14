@@ -194,10 +194,14 @@ class ClaudeContentService
             return array_merge($empty, ['error' => 'Nothing to summarise - this audit has no failing or warning findings.']);
         }
 
-        // 1024 -> 1536: genuinely numbered, literal steps for 2-4 items
-        // run longer than the old "plain paragraphs" version did, and a
-        // walkthrough cut off mid-step is worse than a short one.
-        $result = $this->callClaude($this->recommendationsPrompt($findings, $siteName, $siteUrl, $competitorContext, $stackContext), 1536);
+        // 1024 -> 1536 wasn't enough either - a real 4-item walkthrough
+        // with literal numbered steps for someone with zero technical
+        // background runs well past 1536 tokens, and the Longsands
+        // Lodge recommendation cut off mid-sentence inside item 4 to
+        // prove it. 2800 gives real headroom for the longest realistic
+        // case (4 items, each with 5+ steps) rather than trimming
+        // right at the edge again.
+        $result = $this->callClaude($this->recommendationsPrompt($findings, $siteName, $siteUrl, $competitorContext, $stackContext), 2800);
 
         if ($result['error']) {
             return array_merge($empty, ['error' => $result['error']]);
