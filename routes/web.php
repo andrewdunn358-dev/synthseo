@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompetitorController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\NewsletterController;
+use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\SocialPostController;
 use App\Http\Controllers\TeamController;
@@ -55,4 +56,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/team', [TeamController::class, 'store']);
     Route::post('/team/{teamMember}/access', [TeamController::class, 'updateAccess']);
     Route::delete('/team/{teamMember}', [TeamController::class, 'destroy']);
+
+    Route::get('/platform', [PlatformController::class, 'index']);
+    Route::post('/platform/users/{user}', [PlatformController::class, 'updateUser']);
+    Route::delete('/platform/users/{user}', [PlatformController::class, 'destroyUser']);
+    Route::delete('/platform/accounts/{account}', [PlatformController::class, 'destroyAccount']);
 });

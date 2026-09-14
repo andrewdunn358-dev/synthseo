@@ -218,6 +218,9 @@
       @if (auth()->user()->canManageTeam())
         <a href="/team">Team</a>
       @endif
+      @if (auth()->user()->isStaff())
+        <a href="/platform">Platform</a>
+      @endif
       <form method="POST" action="/logout" style="margin:0">
         @csrf
         <button type="submit" class="linklike">Log out</button>
