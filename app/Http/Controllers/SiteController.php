@@ -43,8 +43,9 @@ class SiteController extends Controller
         $content = $site->content()->limit(10)->get();
         $competitors = $site->competitorComparisons()->limit(10)->get();
         $socialPosts = $site->socialPosts()->limit(10)->get();
+        $newsletters = $site->newsletters()->limit(10)->get();
 
-        return view('sites.show', compact('site', 'audits', 'content', 'competitors', 'socialPosts'));
+        return view('sites.show', compact('site', 'audits', 'content', 'competitors', 'socialPosts', 'newsletters'));
     }
 
     public function destroy(Site $site)

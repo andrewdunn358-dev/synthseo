@@ -62,8 +62,16 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    /*
+     | Used two ways: Laravel's own Mail facade (MAIL_MAILER=resend)
+     | for transactional email, and ResendService's direct REST calls
+     | for newsletter audiences/broadcasts - same API key, same
+     | account, two different uses. `from_address` needs its domain
+     | verified in Resend before broadcasts will actually send.
+     */
     'resend' => [
         'key' => env('RESEND_API_KEY'),
+        'from_address' => env('RESEND_FROM_ADDRESS', 'newsletter@synthseo.co.uk'),
     ],
 
     'ses' => [

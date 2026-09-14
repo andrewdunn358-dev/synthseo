@@ -9,7 +9,7 @@ class Site extends Model
 {
     use BelongsToAccount;
 
-    protected $fillable = ['account_id', 'name', 'url', 'audit_frequency', 'next_audit_at', 'cms', 'host', 'location'];
+    protected $fillable = ['account_id', 'name', 'url', 'audit_frequency', 'next_audit_at', 'cms', 'host', 'location', 'resend_audience_id'];
 
     protected function casts(): array
     {
@@ -41,6 +41,11 @@ class Site extends Model
     public function socialPosts()
     {
         return $this->hasMany(SocialPost::class)->latest();
+    }
+
+    public function newsletters()
+    {
+        return $this->hasMany(Newsletter::class)->latest();
     }
 
     /**

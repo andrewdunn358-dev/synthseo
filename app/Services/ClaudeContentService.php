@@ -70,6 +70,33 @@ class ClaudeContentService
     }
 
     /**
+     * Same title/body split mechanism as generateArticle - reused here
+     * as subject/body rather than duplicating the marker-and-split
+     * logic for what is structurally the same problem.
+     *
+     * @return array{subject:?string,body:?string,model:?string,error:?string}
+     */
+    public function generateNewsletter(string $topic, string $siteName, string $siteUrl): array
+    {
+        $empty = ['subject' => null, 'body' => null, 'model' => null, 'error' => null];
+
+        $result = $this->callClaude($this->newsletterPrompt($topic, $siteName, $siteUrl), 1024);
+
+        if ($result['error']) {
+            return array_merge($empty, ['error' => $result['error']]);
+        }
+
+        [$subject, $body] = $this->splitTitleAndBody($result['text']);
+
+        return [
+            'subject' => $subject,
+            'body' => $body,
+            'model' => self::MODEL,
+            'error' => null,
+        ];
+    }
+
+    /**
      * A short social caption tailored to one platform's actual voice,
      * not one generic paragraph reused everywhere. LinkedIn readers and
      * Instagram readers expect genuinely different things from the same
@@ -236,6 +263,28 @@ class ClaudeContentService
         Then a blank line, then the article body in plain paragraphs
         (no markdown headers, no bullet lists unless the content
         genuinely calls for a short list).
+        PROMPT;
+    }
+
+    private function newsletterPrompt(string $topic, string $siteName, string $siteUrl): string
+    {
+        // Same TITLE: marker as articlePrompt, reused for the subject
+        // line - splitTitleAndBody doesn't care what the marked line
+        // means semantically, only that it is marked.
+        return <<<PROMPT
+        Write a short email newsletter for {$siteName} ({$siteUrl}) on the
+        topic: "{$topic}"
+
+        Write like a genuine update from the business owner to people
+        who already know them, not a marketing campaign - warm, direct,
+        no corporate newsletter filler ("we hope this email finds you
+        well"). 150-250 words, plain paragraphs, no markdown, no bullet
+        lists unless the content genuinely calls for one.
+
+        Respond with the subject line on the first line as:
+        TITLE: <the subject line>
+
+        Then a blank line, then the newsletter body.
         PROMPT;
     }
 

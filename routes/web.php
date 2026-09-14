@@ -5,6 +5,7 @@ use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompetitorController;
 use App\Http\Controllers\ContentController;
+use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\SocialPostController;
 
@@ -43,4 +44,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/sites/{site}/social', [SocialPostController::class, 'store']);
     Route::get('/social/{post}', [SocialPostController::class, 'show']);
+
+    Route::post('/sites/{site}/newsletters', [NewsletterController::class, 'store']);
+    Route::get('/newsletters/{newsletter}', [NewsletterController::class, 'show']);
+    Route::post('/newsletters/{newsletter}/send', [NewsletterController::class, 'send']);
+    Route::post('/sites/{site}/subscribers', [NewsletterController::class, 'addSubscriber']);
 });

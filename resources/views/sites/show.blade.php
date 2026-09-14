@@ -4,7 +4,7 @@
 {{-- Same rule as the audit page: refresh only while something is
      actually pending, and stop the moment it isn't. Content pending
      counts too, so a generating draft also keeps this page live. --}}
-@if ($audits->contains(fn ($a) => in_array($a->status, ['queued', 'running'])) || $content->contains(fn ($c) => $c->isPending()) || $competitors->contains(fn ($c) => $c->isPending()) || $socialPosts->contains(fn ($p) => $p->isPending()))
+@if ($audits->contains(fn ($a) => in_array($a->status, ['queued', 'running'])) || $content->contains(fn ($c) => $c->isPending()) || $competitors->contains(fn ($c) => $c->isPending()) || $socialPosts->contains(fn ($p) => $p->isPending()) || $newsletters->contains(fn ($n) => $n->isPending()))
   @section('head')
     <meta http-equiv="refresh" content="5">
   @endsection
@@ -290,6 +290,52 @@
       @empty
         <div class="muted" style="margin-top:10px">No posts yet. Pick a platform and topic above.</div>
       @endforelse
+    </div>
+
+    <div class="card">
+      <p class="subhead">Newsletter</p>
+      <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">
+        Drafted for review first — nothing sends to subscribers until you open it and click Send.
+      </p>
+      <form method="POST" action="/sites/{{ $site->id }}/newsletters" class="topic-form">
+        @csrf
+        <input type="text" name="topic" placeholder="Topic, e.g. &quot;what's new this month&quot;" required maxlength="255">
+        <button class="btn btn-primary" type="submit">Draft newsletter</button>
+      </form>
+
+      @forelse ($newsletters as $newsletter)
+        <a class="row" href="/newsletters/{{ $newsletter->id }}">
+          <div>
+            <div class="rtitle">{{ $newsletter->subject ?? $newsletter->topic }}</div>
+            <div class="rmeta">{{ $newsletter->created_at->format('j M Y, H:i') }} · {{ ucfirst($newsletter->status) }}</div>
+          </div>
+          @if ($newsletter->isSent())
+            <span class="badge good">Sent</span>
+          @elseif ($newsletter->status === 'completed')
+            <span class="badge unknown">Draft ready</span>
+          @elseif ($newsletter->status === 'failed')
+            <span class="badge poor">Failed</span>
+          @else
+            <span class="badge unknown">—</span>
+          @endif
+        </a>
+      @empty
+        <div class="muted" style="margin-top:10px">No newsletters yet. Enter a topic above.</div>
+      @endforelse
+    </div>
+
+    <div class="card">
+      <p class="subhead">Subscribers</p>
+      <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">
+        Managed directly in Resend — nothing here is stored locally, so unsubscribes and bounces stay accurate
+        automatically.
+      </p>
+      <form method="POST" action="/sites/{{ $site->id }}/subscribers" class="topic-form">
+        @csrf
+        <input type="email" name="email" placeholder="subscriber@example.com" required maxlength="255">
+        <input type="text" name="name" placeholder="Name (optional)" maxlength="255" style="max-width:180px">
+        <button class="btn btn-primary" type="submit">Add subscriber</button>
+      </form>
     </div>
   </div>
 </div>
