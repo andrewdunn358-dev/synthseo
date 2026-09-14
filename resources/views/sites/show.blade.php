@@ -326,11 +326,6 @@
 
     <div class="section">
       <p class="subhead">Subscribers</p>
-      <p class="muted" style="margin:8px 0 0; font-size:var(--fs-sm)">
-        Stored locally for now, not in Resend — this account's API key only has Sending access, which can't manage
-        Resend's own subscriber lists. Unsubscribes aren't handled automatically yet, so keep the list small while
-        this is being tried out.
-      </p>
       <form method="POST" action="/sites/{{ $site->id }}/subscribers" class="topic-form">
         @csrf
         <input type="email" name="email" placeholder="subscriber@example.com" required maxlength="255">
