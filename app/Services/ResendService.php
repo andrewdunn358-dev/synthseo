@@ -159,6 +159,17 @@ class ResendService
     {
         $message = $body['message'] ?? '';
 
+        // 403 alone is ambiguous - Resend uses it both for a genuinely
+        // bad API key AND for "this domain isn't verified yet", with
+        // completely different fixes. Checking the message content
+        // rather than trusting the status code alone is the difference
+        // between telling someone to regenerate a working key and
+        // correctly telling them to wait on DNS.
+        if (($status === 401 || $status === 403) && stripos($message, 'not verified') !== false) {
+            return 'The sending domain isn\'t verified in Resend yet (DNS records can take a while to propagate). '
+                . 'Check the Domains page in Resend - sending will start working once it shows verified.';
+        }
+
         return match (true) {
             $status === 401 || $status === 403 => 'The Resend API key was rejected. Check RESEND_API_KEY in .env.',
             $status === 422 => 'Resend rejected the request' . ($message ? ': ' . mb_substr($message, 0, 200) : '.'),
