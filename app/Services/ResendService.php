@@ -159,15 +159,28 @@ class ResendService
     {
         $message = $body['message'] ?? '';
 
-        // 403 alone is ambiguous - Resend uses it both for a genuinely
-        // bad API key AND for "this domain isn't verified yet", with
-        // completely different fixes. Checking the message content
-        // rather than trusting the status code alone is the difference
-        // between telling someone to regenerate a working key and
-        // correctly telling them to wait on DNS.
+        // 401/403 is ambiguous - Resend uses it for a genuinely bad key,
+        // for "this domain isn't verified yet", AND for a valid key
+        // that's simply the wrong permission level, three completely
+        // different fixes. Checking the message content rather than
+        // trusting the status code alone is the difference between
+        // telling someone to regenerate a working key and correctly
+        // telling them to change a setting on the one they already have.
         if (($status === 401 || $status === 403) && stripos($message, 'not verified') !== false) {
             return 'The sending domain isn\'t verified in Resend yet (DNS records can take a while to propagate). '
                 . 'Check the Domains page in Resend - sending will start working once it shows verified.';
+        }
+
+        // Resend's own restricted_api_key error - a "Sending access"
+        // key is entirely valid for plain transactional email, but
+        // Audiences/Contacts/Broadcasts all need "Full access". This
+        // reads identically to a wrong key otherwise, which sends
+        // someone hunting for a typo in a key that was never wrong.
+        if ($status === 401 && stripos($message, 'restricted to only send emails') !== false) {
+            return 'This Resend API key only has "Sending access", which can\'t manage audiences or send '
+                . 'broadcasts. In Resend\'s API Keys page, edit the key\'s permission to "Full access" (or create a '
+                . 'new key with Full access and update RESEND_API_KEY) - the key itself is correct, it just needs '
+                . 'a broader permission.';
         }
 
         return match (true) {
