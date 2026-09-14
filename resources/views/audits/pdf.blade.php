@@ -73,7 +73,7 @@
   @endif
 
   @if ($audit->hasLighthouse())
-    <h2>Google Lighthouse</h2>
+    <h2>Site performance</h2>
     <table class="lh-table">
       <tr>
         @foreach ([

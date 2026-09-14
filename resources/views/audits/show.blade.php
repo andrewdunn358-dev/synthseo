@@ -159,7 +159,7 @@
        separate from our findings rather than blended into one score. --}}
   @if ($audit->hasLighthouse())
     <div class="card">
-      <p class="subhead">Google Lighthouse</p>
+      <p class="subhead">Site performance</p>
       <div class="gauges">
         @foreach ([
           'Performance' => $audit->lh_performance,
@@ -199,12 +199,12 @@
            somewhere else is worse than no report. --}}
       @if ($audit->lighthouse_final_url && rtrim($audit->lighthouse_final_url, '/') !== rtrim($audit->url, '/'))
         <div class="notice" style="margin-top:16px">
-          Redirected — Google measured <strong>{{ $audit->lighthouse_final_url }}</strong>, not the URL as entered.
+          Redirected — the scan measured <strong>{{ $audit->lighthouse_final_url }}</strong>, not the URL as entered.
         </div>
       @endif
     </div>
   @elseif ($audit->lighthouse_error)
-    <div class="notice">Google Lighthouse: {{ $audit->lighthouse_error }}</div>
+    <div class="notice">Site performance: {{ $audit->lighthouse_error }}</div>
   @endif
 
   {{-- Quick-reference strip: every check that ran, at a glance, in the
@@ -217,7 +217,7 @@
       <p class="subhead">All checks</p>
       @foreach ($findings->groupBy('source') as $source => $group)
         <div class="chiprow">
-          <span class="chiplabel">{{ $source === 'lighthouse' ? 'Lighthouse' : 'On-page' }}</span>
+          <span class="chiplabel">{{ $source === 'lighthouse' ? 'Performance' : 'On-page' }}</span>
           @foreach ($group as $finding)
             <a class="chip c-{{ $finding->status }}" href="#check-{{ $finding->id }}">{{ $finding->title }}</a>
           @endforeach
@@ -232,7 +232,7 @@
         <div class="find" id="check-{{ $finding->id }}">
           <span class="tag t-{{ $finding->status }}">{{ $finding->status }}</span>
           <span class="ftitle">{{ $finding->title }}</span>
-          @if ($finding->source === 'lighthouse')<span class="srctag">Lighthouse</span>@endif
+          @if ($finding->source === 'lighthouse')<span class="srctag">Performance</span>@endif
           @if ($finding->detail)<div class="fdetail">{{ $finding->detail }}</div>@endif
           @if ($finding->value)<div class="fvalue">{{ $finding->value }}</div>@endif
         </div>

@@ -83,14 +83,14 @@
       @if ($leader === 'us')
         <p class="verdict good">{{ $comparison->site->name }} is ahead right now</p>
         <p class="muted" style="margin:0; font-size:var(--fs-base); line-height:1.65">
-          More estimated visits and more ranking keywords means Google is sending this site more free traffic, and
+          More estimated visits and more ranking keywords means this site is getting more free search traffic, and
           for a wider range of searches, than {{ $comparison->competitor_domain }}. Worth protecting that lead -
           publishing content regularly (see the drafts panel above) is the main way to keep it.
         </p>
       @elseif ($leader === 'them')
         <p class="verdict fair">{{ $comparison->competitor_domain }} is ahead right now</p>
         <p class="muted" style="margin:0; font-size:var(--fs-base); line-height:1.65">
-          {{ $comparison->competitor_domain }} is estimated to get more free traffic from Google, and shows up for
+          {{ $comparison->competitor_domain }} is estimated to get more free search traffic, and shows up for
           more different searches, than {{ $comparison->site->name }} does. That usually comes down to having more
           content published, or content that matches more of what customers actually search for - the audit and
           content drafts above are the two levers for closing that gap.
@@ -103,9 +103,9 @@
 
       <div class="metric-explain">
         <strong>Estimated monthly organic visits</strong> — roughly how many people per month are likely to land on
-        the site by clicking an unpaid Google result, based on the search terms it ranks for and how popular each
+        the site by clicking an unpaid search result, based on the search terms it ranks for and how popular each
         one is. It is not a reading from either site's real analytics, since neither site has shared that.<br><br>
-        <strong>Ranking keywords</strong> — the number of different search terms Google shows this site for anywhere
+        <strong>Ranking keywords</strong> — the number of different search terms this site shows up for anywhere
         in its results, not just page one. A higher number means the site is visible for a broader range of what
         customers actually search for.<br><br>
         Both figures come from DataForSEO's own search index, updated weekly - not a live crawl of either site, so a

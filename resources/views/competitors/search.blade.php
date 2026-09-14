@@ -23,7 +23,7 @@
   <div style="margin-top:12px">
     <h1>Who ranks for "{{ $query }}"?</h1>
     <p class="muted" style="margin-top:8px; font-size:var(--fs-base)">
-      Real Google results for that search right now, not a lookup based on {{ $site->name }}'s own ranking history -
+      Live search results for that phrase right now, not a lookup based on {{ $site->name }}'s own ranking history -
       this works the same whether {{ $site->name }} has an established search presence or none at all.
     </p>
   </div>

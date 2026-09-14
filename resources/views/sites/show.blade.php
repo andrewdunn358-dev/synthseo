@@ -103,7 +103,7 @@
     <form method="POST" action="/sites/{{ $site->id }}/competitors/search" class="topic-form" style="margin-top:10px">
       @csrf
       <input type="text" name="query" placeholder="Or search what a customer would type, e.g. &quot;IT support North Shields&quot;" required maxlength="255">
-      <button class="btn" type="submit">Search Google</button>
+      <button class="btn" type="submit">Search live results</button>
     </form>
 
     @forelse ($competitors as $comparison)
