@@ -327,8 +327,9 @@
     <div class="section">
       <p class="subhead">Subscribers</p>
       <p class="muted" style="margin:8px 0 0; font-size:var(--fs-sm)">
-        Managed directly in Resend — nothing here is stored locally, so unsubscribes and bounces stay accurate
-        automatically.
+        Stored locally for now, not in Resend — this account's API key only has Sending access, which can't manage
+        Resend's own subscriber lists. Unsubscribes aren't handled automatically yet, so keep the list small while
+        this is being tried out.
       </p>
       <form method="POST" action="/sites/{{ $site->id }}/subscribers" class="topic-form">
         @csrf
@@ -336,6 +337,22 @@
         <input type="text" name="name" placeholder="Name (optional)" maxlength="255" style="max-width:180px">
         <button class="btn btn-primary" type="submit">Add subscriber</button>
       </form>
+
+      @forelse ($subscribers as $subscriber)
+        <div class="row">
+          <div>
+            <div class="rtitle">{{ $subscriber->name ?? $subscriber->email }}</div>
+            @if ($subscriber->name)<div class="rmeta">{{ $subscriber->email }}</div>@endif
+          </div>
+          <form method="POST" action="/subscribers/{{ $subscriber->id }}"
+            onsubmit="return confirm('Remove {{ $subscriber->email }}?')">
+            @csrf @method('DELETE')
+            <button class="linklike" type="submit" style="color:var(--poor); font-size:var(--fs-sm)">Remove</button>
+          </form>
+        </div>
+      @empty
+        <div class="muted" style="margin-top:10px">No subscribers yet.</div>
+      @endforelse
     </div>
   </div>
 </div>

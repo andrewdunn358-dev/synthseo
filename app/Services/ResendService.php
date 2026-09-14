@@ -6,28 +6,22 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Newsletter infrastructure via Resend - audiences (one per site,
- * created lazily), contacts (subscribers), and broadcasts (the send).
+ * A single plain transactional send via Resend's own /emails endpoint
+ * - deliberately not using Resend's Audiences/Contacts/Broadcasts.
  *
- * WHY RESEND OWNS THE SUBSCRIBER LIST, NOT THIS APP
- * No subscriber email address is ever stored in this app's own
- * database - every add/list operation is a live call to Resend's API.
- * Two reasons: Resend already handles the genuinely hard, compliance-
- * critical parts of this correctly (unsubscribe flows meeting Gmail/
- * Yahoo's 2024 bulk-sender requirements, suppression on unsubscribe),
- * and a second local copy of the same list would drift out of sync
- * with the real source of truth the moment someone unsubscribes
- * through Resend directly. One system of record for a client's PII
- * is also simply the safer choice.
- *
- * WHY THIS APP DOES NOT BUILD ITS OWN SENDING INFRASTRUCTURE
- * The hard part of email marketing is deliverability - IP reputation,
- * DKIM/SPF/DMARC alignment, bounce and complaint handling, staying off
- * blocklists - built by dedicated teams over years. This service is a
- * thin layer over infrastructure that already solves that; building a
- * Mailchimp/Brevo equivalent from scratch would mean months of work
- * that ends with worse deliverability than a service that already has
- * an established sending reputation.
+ * WHY: those need a "Full access" API key, and the real account this
+ * shipped against only has "Sending access" (Full access was greyed
+ * out on that account, cause unconfirmed). Sending access can still
+ * do exactly one thing - send a single email - which is exactly what
+ * this method does. The newsletter feature is also still being tried
+ * out and may not stick, so a local subscriber list plus one send
+ * call per recipient (see NewsletterController::send) is the
+ * simplest thing that actually works today, not a bigger
+ * rearchitecture toward a permission level this account may never
+ * get. If this becomes a permanent feature at real subscriber volume,
+ * Resend's own Broadcasts (and their built-in unsubscribe handling)
+ * are worth revisiting - this app deliberately still does not build
+ * its own bulk-sending infrastructure; see the git history for why.
  *
  * FAILURE IS NORMAL AND MUST NOT THROW - same shape as every other
  * service in this app.
@@ -44,143 +38,49 @@ class ResendService
     }
 
     /**
-     * @return array{audience_id:?string,error:?string}
-     */
-    public function createAudience(string $name): array
-    {
-        $empty = ['audience_id' => null, 'error' => null];
-
-        if (! $this->apiKey) {
-            return array_merge($empty, [
-                'error' => 'No Resend API key configured. Add RESEND_API_KEY in .env.',
-            ]);
-        }
-
-        $result = $this->call('POST', 'audiences', ['name' => $name]);
-
-        if ($result['error']) {
-            return array_merge($empty, ['error' => $result['error']]);
-        }
-
-        $id = $result['body']['id'] ?? null;
-
-        return $id
-            ? ['audience_id' => $id, 'error' => null]
-            : array_merge($empty, ['error' => 'Resend did not return an audience id.']);
-    }
-
-    /**
      * @return array{error:?string}
      */
-    public function addSubscriber(string $audienceId, string $email, ?string $name = null): array
+    public function sendEmail(string $to, string $fromAddress, string $subject, string $htmlBody): array
     {
         if (! $this->apiKey) {
             return ['error' => 'No Resend API key configured. Add RESEND_API_KEY in .env.'];
         }
 
-        $payload = ['email' => $email];
-
-        if ($name) {
-            $payload['first_name'] = $name;
-        }
-
-        $result = $this->call('POST', "audiences/{$audienceId}/contacts", $payload);
-
-        return ['error' => $result['error']];
-    }
-
-    /**
-     * Creates and sends in a single call. `send: true` is Resend's
-     * newer combined create-and-send - preferred over the older two-
-     * request create-then-send flow because it removes a window where
-     * a created-but-unsent draft could be left behind by a failure
-     * between the two calls.
-     *
-     * The RESEND_UNSUBSCRIBE_URL placeholder in $htmlBody gets replaced
-     * per-recipient automatically - see the class doc for why that
-     * matters. Callers must include it; this method does not add it
-     * silently, so it stays visible in the actual template being sent
-     * rather than hidden inside this service.
-     *
-     * @return array{broadcast_id:?string,error:?string}
-     */
-    public function sendBroadcast(string $audienceId, string $fromAddress, string $subject, string $htmlBody): array
-    {
-        $empty = ['broadcast_id' => null, 'error' => null];
-
-        if (! $this->apiKey) {
-            return array_merge($empty, [
-                'error' => 'No Resend API key configured. Add RESEND_API_KEY in .env.',
-            ]);
-        }
-
-        $result = $this->call('POST', 'broadcasts', [
-            'audience_id' => $audienceId,
-            'from' => $fromAddress,
-            'subject' => $subject,
-            'html' => $htmlBody,
-            'send' => true,
-        ]);
-
-        if ($result['error']) {
-            return array_merge($empty, ['error' => $result['error']]);
-        }
-
-        $id = $result['body']['id'] ?? null;
-
-        return $id
-            ? ['broadcast_id' => $id, 'error' => null]
-            : array_merge($empty, ['error' => 'Resend did not return a broadcast id.']);
-    }
-
-    /**
-     * @return array{body:?array,error:?string}
-     */
-    private function call(string $method, string $path, array $payload): array
-    {
         try {
             $response = Http::withToken($this->apiKey)
                 ->timeout(self::TIMEOUT)
-                ->{strtolower($method)}(self::BASE . $path, $payload);
+                ->post(self::BASE . 'emails', [
+                    'from' => $fromAddress,
+                    'to' => $to,
+                    'subject' => $subject,
+                    'html' => $htmlBody,
+                ]);
         } catch (\Throwable $e) {
-            Log::warning('Resend request failed', ['path' => $path, 'error' => $e->getMessage()]);
+            Log::warning('Resend send failed', ['to' => $to, 'error' => $e->getMessage()]);
 
-            return ['body' => null, 'error' => 'The request did not complete (it may have timed out).'];
+            return ['error' => 'The request did not complete (it may have timed out).'];
         }
 
         if (! $response->successful()) {
-            return ['body' => null, 'error' => $this->readableError($response->status(), $response->json())];
+            return ['error' => $this->readableError($response->status(), $response->json())];
         }
 
-        return ['body' => $response->json(), 'error' => null];
+        return ['error' => null];
     }
 
     private function readableError(int $status, ?array $body): string
     {
         $message = $body['message'] ?? '';
 
-        // 401/403 is ambiguous - Resend uses it for a genuinely bad key,
-        // for "this domain isn't verified yet", AND for a valid key
-        // that's simply the wrong permission level, three completely
-        // different fixes. Checking the message content rather than
-        // trusting the status code alone is the difference between
-        // telling someone to regenerate a working key and correctly
-        // telling them to change a setting on the one they already have.
+        // 401/403 is ambiguous - Resend uses it both for a genuinely
+        // bad key and for "this domain isn't verified yet", with
+        // completely different fixes. Checking the message content
+        // rather than trusting the status code alone is the difference
+        // between telling someone to regenerate a working key and
+        // correctly telling them to wait on DNS.
         if (($status === 401 || $status === 403) && stripos($message, 'not verified') !== false) {
             return 'The sending domain isn\'t verified in Resend yet (DNS records can take a while to propagate). '
                 . 'Check the Domains page in Resend - sending will start working once it shows verified.';
-        }
-
-        // Resend's own restricted_api_key error - a "Sending access"
-        // key is entirely valid for plain transactional email, but
-        // Audiences/Contacts/Broadcasts all need "Full access". This
-        // reads identically to a wrong key otherwise, which sends
-        // someone hunting for a typo in a key that was never wrong.
-        if ($status === 401 && stripos($message, 'restricted to only send emails') !== false) {
-            return 'This Resend API key only has "Sending access", which can\'t manage audiences or send '
-                . 'broadcasts. In Resend\'s API Keys page, edit the key\'s permission to "Full access" (or create a '
-                . 'new key with Full access and update RESEND_API_KEY) - the key itself is correct, it just needs '
-                . 'a broader permission.';
         }
 
         return match (true) {

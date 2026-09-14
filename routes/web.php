@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/newsletters/{newsletter}', [NewsletterController::class, 'show']);
     Route::post('/newsletters/{newsletter}/send', [NewsletterController::class, 'send']);
     Route::post('/sites/{site}/subscribers', [NewsletterController::class, 'addSubscriber']);
+    Route::delete('/subscribers/{subscriber}', [NewsletterController::class, 'destroySubscriber']);
 
     Route::get('/team', [TeamController::class, 'index']);
     Route::post('/team', [TeamController::class, 'store']);

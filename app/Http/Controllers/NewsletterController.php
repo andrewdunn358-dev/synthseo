@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\GenerateNewsletter;
 use App\Models\Newsletter;
+use App\Models\NewsletterSubscriber;
 use App\Models\Site;
 use App\Services\ResendService;
 use Illuminate\Http\Request;
@@ -36,88 +37,91 @@ class NewsletterController extends Controller
     }
 
     /**
-     * The second, explicit step - see the migration's doc comment.
-     * Ensures the site has a Resend Audience (created lazily on first
-     * send, not when the site is added), then sends the reviewed draft
-     * to it as a Broadcast.
+     * The second, explicit step - see the migration's doc comment on
+     * newsletters. Sends one plain email per subscriber via
+     * ResendService::sendEmail() rather than a single Broadcast call -
+     * see newsletter_subscribers' own migration doc comment for why
+     * (Sending-access API key, no Audiences/Broadcasts available).
+     * Genuinely slower and loses Resend's built-in unsubscribe
+     * handling, both acceptable trade-offs for a feature still being
+     * tried out at a handful of subscribers, not thousands.
      */
     public function send(Newsletter $newsletter, ResendService $resend)
     {
         $newsletter->load('site');
-        $site = $newsletter->site;
 
         if ($newsletter->isSent()) {
             return redirect('/newsletters/' . $newsletter->id);
         }
 
-        if (! $site->resend_audience_id) {
-            $audience = $resend->createAudience($site->name);
+        $subscribers = $newsletter->site->subscribers;
 
-            if ($audience['error']) {
-                $newsletter->update(['error' => $audience['error']]);
+        if ($subscribers->isEmpty()) {
+            return redirect('/newsletters/' . $newsletter->id)
+                ->with('status', 'No subscribers to send to yet - add one below first.');
+        }
 
-                return redirect('/newsletters/' . $newsletter->id)->with('status', 'Could not send: ' . $audience['error']);
+        $html = '<div style="font-family:sans-serif; font-size:15px; line-height:1.6; white-space:pre-wrap;">'
+            . e($newsletter->body) . '</div>';
+
+        $fromAddress = $newsletter->site->name . ' via SynthSEO <' . config('services.resend.from_address') . '>';
+
+        $sent = 0;
+        $lastError = null;
+
+        foreach ($subscribers as $subscriber) {
+            $result = $resend->sendEmail($subscriber->email, $fromAddress, $newsletter->subject, $html);
+
+            if ($result['error']) {
+                $lastError = $result['error'];
+
+                continue;
             }
 
-            $site->update(['resend_audience_id' => $audience['audience_id']]);
+            $sent++;
         }
 
-        // The unsubscribe placeholder is added here, not stored as part
-        // of the draft body a person reviews - it would be confusing
-        // clutter in something meant to read as plain newsletter copy,
-        // and it only matters at the point of actually sending.
-        $html = '<div style="font-family:sans-serif; font-size:15px; line-height:1.6; white-space:pre-wrap;">'
-            . e($newsletter->body)
-            . '</div><p style="font-size:12px; color:#888; margin-top:24px;">'
-            . 'Unsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}</p>';
+        if ($sent === 0) {
+            $newsletter->update(['error' => $lastError]);
 
-        $fromAddress = $site->name . ' via SynthSEO <' . config('services.resend.from_address') . '>';
-
-        $result = $resend->sendBroadcast($site->resend_audience_id, $fromAddress, $newsletter->subject, $html);
-
-        if ($result['error']) {
-            $newsletter->update(['error' => $result['error']]);
-
-            return redirect('/newsletters/' . $newsletter->id)->with('status', 'Could not send: ' . $result['error']);
+            return redirect('/newsletters/' . $newsletter->id)->with('status', 'Could not send: ' . $lastError);
         }
 
-        $newsletter->update([
-            'resend_broadcast_id' => $result['broadcast_id'],
-            'sent_at' => now(),
-            'error' => null,
-        ]);
+        $newsletter->update(['sent_at' => now(), 'error' => null]);
 
-        return redirect('/newsletters/' . $newsletter->id)->with('status', 'Newsletter sent.');
+        $status = $sent === $subscribers->count()
+            ? "Sent to all {$sent} subscribers."
+            : "Sent to {$sent} of {$subscribers->count()} subscribers - the rest failed ({$lastError}).";
+
+        return redirect('/newsletters/' . $newsletter->id)->with('status', $status);
     }
 
     /**
-     * No local subscriber storage - see ResendService's class doc for
-     * why. This just proxies one contact into the site's Resend
-     * Audience, creating the audience first if this is the site's
-     * first subscriber.
+     * Stored locally now, not in a Resend Audience - see
+     * newsletter_subscribers' migration doc comment for why. firstOrCreate
+     * on [site_id, email] so re-adding the same address updates the
+     * name rather than erroring on the table's unique constraint.
      */
-    public function addSubscriber(Request $request, Site $site, ResendService $resend)
+    public function addSubscriber(Request $request, Site $site)
     {
         $data = $request->validate([
             'email' => ['required', 'email', 'max:255'],
             'name' => ['nullable', 'string', 'max:255'],
         ]);
 
-        if (! $site->resend_audience_id) {
-            $audience = $resend->createAudience($site->name);
-
-            if ($audience['error']) {
-                return redirect('/sites/' . $site->id)->with('status', 'Could not add subscriber: ' . $audience['error']);
-            }
-
-            $site->update(['resend_audience_id' => $audience['audience_id']]);
-        }
-
-        $result = $resend->addSubscriber($site->resend_audience_id, $data['email'], $data['name'] ?? null);
-
-        return redirect('/sites/' . $site->id)->with(
-            'status',
-            $result['error'] ? 'Could not add subscriber: ' . $result['error'] : 'Subscriber added.',
+        NewsletterSubscriber::updateOrCreate(
+            ['site_id' => $site->id, 'email' => $data['email']],
+            ['account_id' => $site->account_id, 'name' => $data['name'] ?? null],
         );
+
+        return redirect('/sites/' . $site->id)->with('status', 'Subscriber added.');
+    }
+
+    public function destroySubscriber(NewsletterSubscriber $subscriber)
+    {
+        $siteId = $subscriber->site_id;
+        $subscriber->delete();
+
+        return redirect('/sites/' . $siteId)->with('status', 'Subscriber removed.');
     }
 }

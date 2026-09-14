@@ -48,6 +48,11 @@ class Site extends Model
         return $this->hasMany(Newsletter::class)->latest();
     }
 
+    public function subscribers()
+    {
+        return $this->hasMany(NewsletterSubscriber::class)->latest();
+    }
+
     /** Team members explicitly granted access - see User::sites and
      *  the site_user migration's doc comment for why this only
      *  matters for role === 'member'. */
