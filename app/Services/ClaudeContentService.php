@@ -408,6 +408,17 @@ class ClaudeContentService
 
         {$findingsList}
         {$competitorLine}{$stackLine}
+        Findings marked (source: lighthouse) come from Google Lighthouse
+        tested on a simulated slow mobile connection, not a plain
+        real-world load - a business owner testing the same URL in their
+        own desktop browser on decent broadband will likely see it load
+        much faster, and that is not a contradiction. If you state a
+        specific time figure from one of these findings, say plainly
+        that it reflects a simulated slow mobile connection rather than
+        stating it as a flat, unqualified fact - otherwise it reads as
+        wrong to someone who just tried the site themselves and saw it
+        load fine.
+
         Write a prioritised action plan for someone who may never have
         used a website admin panel before and may not be a developer at
         all - assume genuinely zero technical background, not just
