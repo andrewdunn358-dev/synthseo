@@ -32,7 +32,17 @@ class SiteController extends Controller
         // account_id is stamped by the trait's creating hook rather than
         // taken from the request - a tenant id that arrives in a form
         // post is a tenant id an attacker can change.
-        Site::create($data);
+        $site = Site::create($data);
+
+        // A restricted member creating a site would otherwise lose
+        // sight of it immediately - Site::visibleTo() only shows a
+        // member sites they've been explicitly granted, and nothing
+        // grants that automatically just because they made it. Admins
+        // and staff see everything regardless, so this is genuinely
+        // only needed for 'member'.
+        if (Auth::user()->role === 'member') {
+            $site->users()->attach(Auth::id());
+        }
 
         return redirect('/sites')->with('status', 'Site added.');
     }
