@@ -119,7 +119,7 @@ class SeoAuditService
         $findings[] = $this->checkCanonical($xpath);
         $findings[] = $this->checkViewport($xpath);
         $findings[] = $this->checkLang($xpath);
-        $findings[] = $this->checkImageAlts($xpath);
+        $findings[] = $this->checkImageAlts($xpath, $url);
         $findings[] = $this->checkIndexable($xpath);
         $findings[] = $this->checkOpenGraph($xpath);
         $findings[] = $this->checkHeadingOrder($xpath);
@@ -286,7 +286,7 @@ class SeoAuditService
                 'Declaring the language helps search engines serve the page to the right audience, and screen readers pronounce it correctly.', null);
     }
 
-    private function checkImageAlts(DOMXPath $xpath): array
+    private function checkImageAlts(DOMXPath $xpath, string $baseUrl): array
     {
         $all = $xpath->query('//img');
         $total = $all ? $all->length : 0;
@@ -302,9 +302,34 @@ class SeoAuditService
             return $this->pass('image_alt', 'All images have alt text', "{$total} images, all described");
         }
 
+        // The specific images missing alt text, not just a count - real
+        // thumbnails on the audit page so "which ones" doesn't require
+        // opening dev tools to find out. Same resolveUrl() already used
+        // for broken-link checking, and the same 4-image cap
+        // PageSpeedService's own image findings use.
+        $images = [];
+
+        foreach ($missing as $img) {
+            $src = trim($img->getAttribute('src'));
+
+            if ($src === '') {
+                continue;
+            }
+
+            $resolved = $this->resolveUrl($baseUrl, $src);
+
+            if ($resolved) {
+                $images[] = ['url' => $resolved, 'wasted_bytes' => null, 'total_bytes' => null];
+            }
+
+            if (count($images) >= 4) {
+                break;
+            }
+        }
+
         return $this->warn('image_alt', 'medium', 'Images missing alt text',
             "{$missingCount} of {$total} images have no alt text. Alt text is both an accessibility requirement and a way for images to rank.",
-            "{$missingCount} of {$total} missing");
+            "{$missingCount} of {$total} missing") + ['images' => $images ?: null];
     }
 
     private function checkIndexable(DOMXPath $xpath): array

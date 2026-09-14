@@ -33,7 +33,11 @@ function check(string $label, bool $ok, string $detail = ''): void
     if (! $ok) { $failures[] = $label; }
 }
 
-/** Calls a private check method with a parsed document. */
+/** Calls a private check method with a parsed document. A fixed base
+ *  URL is always passed as a second argument - PHP silently ignores
+ *  extra arguments for methods that only take $xpath, and
+ *  checkImageAlts (which needs a base URL to resolve relative image
+ *  src attributes into real thumbnail URLs) actually uses it. */
 function runCheck(string $method, string $html): array
 {
     $service = new SeoAuditService();
@@ -45,7 +49,7 @@ function runCheck(string $method, string $html): array
 
     $m = $ref->getMethod($method);
     $m->setAccessible(true);
-    return $m->invoke($service, $xpath);
+    return $m->invoke($service, $xpath, 'https://example.co.uk/');
 }
 
 function runScore(array $findings): int
@@ -117,6 +121,13 @@ check('all images described passes', $r['status'] === 'pass');
 $r = runCheck('checkImageAlts', $page('', '<img src="a.jpg" alt="A cat"><img src="b.jpg">'));
 check('a missing alt warns', $r['status'] === 'warn');
 check('the count is reported honestly', $r['value'] === '1 of 2 missing', $r['value'] ?? 'null');
+check('the specific missing image is captured with a resolved url',
+    isset($r['images'][0]['url']) && $r['images'][0]['url'] === 'https://example.co.uk/b.jpg', $r['images'][0]['url'] ?? 'null');
+check('the described image is not included in the missing-images list',
+    count($r['images']) === 1, (string) count($r['images'] ?? []));
+
+$r = runCheck('checkImageAlts', $page('', '<img src="a.jpg" alt="A cat"><img src="b.jpg" alt="A dog">'));
+check('all images described has no images list', empty($r['images']), var_export($r['images'] ?? null, true));
 
 // An empty alt is not the same as a described image.
 $r = runCheck('checkImageAlts', $page('', '<img src="a.jpg" alt="   ">'));
