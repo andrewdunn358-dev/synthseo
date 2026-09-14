@@ -33,32 +33,32 @@
 
   .vitals{ display:flex; gap:26px; flex-wrap:wrap; margin-top:var(--sp-5);
            font-family:'IBM Plex Mono',monospace; font-size:var(--fs-sm); color:var(--grey); }
-  .srctag{ font-size:var(--fs-2xs); letter-spacing:.05em; color:var(--grey-dim);
-           border:1px solid var(--border-strong); padding:2px 6px; border-radius:4px; margin-left:8px; }
-
-  .find{ padding:16px 0; border-bottom:1px solid var(--border); }
-  .find:last-child{ border-bottom:0; }
-  .tag{ font-size:11px; font-weight:600; padding:3px 8px; border-radius:4px; margin-right:10px; }
-  .t-fail{ background:rgba(240,100,90,.16); color:var(--poor); }
-  .t-warn{ background:rgba(240,166,62,.16); color:var(--fair); }
-  .t-pass{ background:rgba(79,214,156,.14); color:var(--good); }
-  .ftitle{ font-weight:600; }
-  .fdetail{ color:var(--grey); font-size:var(--fs-sm); margin-top:5px; }
-  .fvalue{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--grey-dim);
-           margin-top:7px; word-break:break-word; }
-
-  .chiprow{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-  .chiprow:last-child{ margin-bottom:0; }
-  .chiplabel{ font-size:var(--fs-2xs); letter-spacing:.04em; color:var(--grey-dim);
-              width:78px; flex-shrink:0; }
-  .chip{ font-size:12.5px; padding:5px 10px; border-radius:14px; text-decoration:none;
-         border:1px solid transparent; white-space:nowrap; }
-  .chip.c-fail{ background:rgba(240,100,90,.14); color:var(--poor); border-color:rgba(240,100,90,.3); }
-  .chip.c-warn{ background:rgba(240,166,62,.14); color:var(--fair); border-color:rgba(240,166,62,.3); }
-  .chip.c-pass{ background:rgba(79,214,156,.10); color:var(--good); border-color:rgba(79,214,156,.2); }
-  .chip:hover{ filter:brightness(1.15); }
 
   .article{ font-size:var(--fs-base); line-height:1.7; white-space:pre-wrap; }
+
+  /*
+   | All Checks, restructured from a wall of colourful pills into
+   | grouped table-like rows - a status dot instead of a badge per
+   | check, a group header carrying the count instead of a separate
+   | quick-reference strip duplicating the same information below it.
+   */
+  .check-group{ display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+                padding:16px 2px 8px; border-top:1px solid var(--border); }
+  .check-group:first-child{ border-top:0; padding-top:0; }
+  .check-group-title{ font-size:var(--fs-xs); font-weight:650; color:var(--grey-dim);
+                       text-transform:uppercase; letter-spacing:.04em; }
+  .check-group-count{ font-size:var(--fs-xs); color:var(--grey); }
+  .check-group-count.poor{ color:var(--poor); font-weight:600; }
+
+  .check-row{ display:flex; align-items:flex-start; gap:10px; padding:9px 2px; }
+  .check-dot{ width:8px; height:8px; border-radius:50%; margin-top:7px; flex-shrink:0; }
+  .check-dot.fail{ background:var(--poor); }
+  .check-dot.warn{ background:var(--fair); }
+  .check-dot.pass{ background:var(--good); }
+  .check-title{ font-size:var(--fs-sm); font-weight:500; }
+  .check-detail{ font-size:var(--fs-xs); color:var(--grey); margin-top:3px; line-height:1.5; }
+  .check-value{ font-family:'IBM Plex Mono',monospace; font-size:var(--fs-2xs); color:var(--grey-dim);
+                margin-top:5px; word-break:break-word; }
 @endsection
 
 @section('content')
@@ -202,35 +202,39 @@
     <div class="notice">Site performance: {{ $audit->lighthouse_error }}</div>
   @endif
 
-  {{-- Quick-reference strip: every check that ran, at a glance, in the
-       original check order rather than fail-first - so "did the
-       broken-link check even run" is answerable without scrolling
-       past everything else to find one pass among fifteen. Each chip
-       jumps to its full entry below. --}}
+  {{-- Grouped like a real checklist, not a wall of colourful pills -
+       a group header carrying the issue count, each check a compact
+       row with a status dot. Passes get one plain line; fails/warns
+       get their detail shown inline, since that detail is the actual
+       advice, not something worth hiding behind a click. --}}
   @if ($findings->isNotEmpty())
-    <div class="card">
+    <div class="card reveal">
       <p class="subhead">All checks</p>
       @foreach ($findings->groupBy('source') as $source => $group)
-        <div class="chiprow">
-          <span class="chiplabel">{{ $source === 'lighthouse' ? 'Performance' : 'On-page' }}</span>
-          @foreach ($group as $finding)
-            <a class="chip c-{{ $finding->status }}" href="#check-{{ $finding->id }}">{{ $finding->title }}</a>
-          @endforeach
+        @php
+          $groupLabel = $source === 'lighthouse' ? 'Performance' : 'On-page';
+          $groupIssues = $group->whereIn('status', ['fail', 'warn'])->count();
+        @endphp
+        <div class="check-group">
+          <span class="check-group-title">{{ $groupLabel }}</span>
+          <span class="check-group-count {{ $groupIssues ? 'poor' : '' }}">
+            {{ $groupIssues ? $groupIssues . ' ' . \Illuminate\Support\Str::plural('issue', $groupIssues) : 'All good' }}
+          </span>
         </div>
-      @endforeach
-    </div>
-  @endif
-
-  @if ($findings->isNotEmpty())
-    <div class="card">
-      @foreach ($findings as $finding)
-        <div class="find" id="check-{{ $finding->id }}">
-          <span class="tag t-{{ $finding->status }}">{{ $finding->status }}</span>
-          <span class="ftitle">{{ $finding->title }}</span>
-          @if ($finding->source === 'lighthouse')<span class="srctag">Performance</span>@endif
-          @if ($finding->detail)<div class="fdetail">{{ $finding->detail }}</div>@endif
-          @if ($finding->value)<div class="fvalue">{{ $finding->value }}</div>@endif
-        </div>
+        @foreach ($group as $finding)
+          <div class="check-row">
+            <span class="check-dot {{ $finding->status }}"></span>
+            <div>
+              <div class="check-title">{{ $finding->title }}</div>
+              @if ($finding->status !== 'pass' && $finding->detail)
+                <div class="check-detail">{{ $finding->detail }}</div>
+              @endif
+              @if ($finding->status !== 'pass' && $finding->value)
+                <div class="check-value">{{ $finding->value }}</div>
+              @endif
+            </div>
+          </div>
+        @endforeach
       @endforeach
     </div>
   @elseif (! in_array($audit->status, ['queued', 'running']))
