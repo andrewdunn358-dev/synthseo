@@ -162,6 +162,20 @@
   .row .rtitle{ font-weight:600; font-size:var(--fs-md); }
   .row .rmeta{ font-size:var(--fs-xs); color:var(--grey); margin-top:2px; }
 
+  /* Shared tab-switcher, used wherever a page has more than one
+     coherent view of the same data (SEO/Marketing on the site page,
+     Mobile/Desktop on the audit page) - written once so every new use
+     doesn't redefine near-identical CSS. Active tab is each page's own
+     responsibility to persist (sessionStorage, keyed per use) since
+     what "remembering the tab" should mean differs by page. */
+  .tabs{ display:flex; gap:22px; margin-top:var(--sp-6); border-bottom:1px solid var(--border); }
+  .tab-btn{ background:none; border:0; border-bottom:2px solid transparent; color:var(--grey);
+            font:inherit; font-size:var(--fs-base); font-weight:600; padding:10px 2px; cursor:pointer;
+            transition:color .12s ease; }
+  .tab-btn:hover{ color:var(--paper); }
+  .tab-btn.active{ color:var(--paper); border-bottom-color:var(--brand); }
+  .tab-panel{ margin-top:0; }
+
   /* Small status dot used anywhere a compact list of pass/fail/warn
      items needs a state indicator without wrapping every item in a
      coloured pill - the audit page's own findings list, and the

@@ -158,50 +158,113 @@
        the same visual language PageSpeed Insights itself uses. For a
        client report "Google scores your performance 86" carries weight
        our own figure never could, which is exactly why these stay
-       separate from our findings rather than blended into one score. --}}
+       separate from our findings rather than blended into one score.
+
+       Mobile and desktop give materially different numbers - the same
+       tab pattern as the site page, but only shown when both actually
+       ran; a site with no desktop result (PageSpeed failed, or an
+       audit from before this existed) just shows mobile with no
+       toggle at all rather than an empty second tab. --}}
   @if ($audit->hasLighthouse())
     <div class="card">
-      <p class="subhead">Site performance</p>
-      <div class="gauges">
-        @foreach ([
-          'Performance' => $audit->lh_performance,
-          'SEO' => $audit->lh_seo,
-          'Accessibility' => $audit->lh_accessibility,
-          'Best practices' => $audit->lh_best_practices,
-        ] as $label => $value)
-          @php
-            $band = \App\Models\Audit::lighthouseBand($value);
-            $r = 46; $circumference = 2 * M_PI * $r;
-            $pct = $value !== null ? max(0, min(100, $value)) : 0;
-            $offset = $circumference * (1 - $pct / 100);
-          @endphp
-          <div class="gauge-card">
-            <div class="gauge">
-              <svg viewBox="0 0 104 104">
-                <circle class="gauge-track" cx="52" cy="52" r="{{ $r }}"/>
-                <circle class="gauge-fill {{ $band }}" cx="52" cy="52" r="{{ $r }}"
-                  stroke-dasharray="{{ $circumference }}" stroke-dashoffset="{{ $offset }}"/>
-              </svg>
-              <div class="gauge-value">{{ $value !== null ? $value : '—' }}</div>
-            </div>
-            <div class="gauge-label">{{ $label }}</div>
+      <div class="section-head" style="margin-bottom:0">
+        <p class="subhead" style="margin:0">Site performance</p>
+        @if ($audit->hasDesktopLighthouse())
+          <div class="tabs" style="margin-top:0; border-bottom:0">
+            <button type="button" class="tab-btn" id="strategy-btn-mobile" onclick="showStrategy('mobile')">Mobile</button>
+            <button type="button" class="tab-btn" id="strategy-btn-desktop" onclick="showStrategy('desktop')">Desktop</button>
           </div>
-        @endforeach
+        @endif
       </div>
 
-      <div class="vitals">
-        @if ($audit->lh_lcp_ms !== null)<span>LCP {{ number_format($audit->lh_lcp_ms / 1000, 1) }}s</span>@endif
-        @if ($audit->lh_tbt_ms !== null)<span>TBT {{ $audit->lh_tbt_ms }}ms</span>@endif
-        @if ($audit->lh_cls !== null)<span>CLS {{ rtrim(rtrim(number_format($audit->lh_cls, 3), '0'), '.') }}</span>@endif
-        @if ($audit->lighthouse_strategy)<span>{{ ucfirst($audit->lighthouse_strategy) }}</span>@endif
+      <div id="lh-mobile" class="tab-panel" style="margin-top:var(--sp-4)">
+        <div class="gauges">
+          @foreach ([
+            'Performance' => $audit->lh_performance,
+            'SEO' => $audit->lh_seo,
+            'Accessibility' => $audit->lh_accessibility,
+            'Best practices' => $audit->lh_best_practices,
+          ] as $label => $value)
+            @php
+              $band = \App\Models\Audit::lighthouseBand($value);
+              $r = 46; $circumference = 2 * M_PI * $r;
+              $pct = $value !== null ? max(0, min(100, $value)) : 0;
+              $offset = $circumference * (1 - $pct / 100);
+            @endphp
+            <div class="gauge-card">
+              <div class="gauge">
+                <svg viewBox="0 0 104 104">
+                  <circle class="gauge-track" cx="52" cy="52" r="{{ $r }}"/>
+                  <circle class="gauge-fill {{ $band }}" cx="52" cy="52" r="{{ $r }}"
+                    stroke-dasharray="{{ $circumference }}" stroke-dashoffset="{{ $offset }}"/>
+                </svg>
+                <div class="gauge-value">{{ $value !== null ? $value : '—' }}</div>
+              </div>
+              <div class="gauge-label">{{ $label }}</div>
+            </div>
+          @endforeach
+        </div>
+
+        <div class="vitals">
+          @if ($audit->lh_lcp_ms !== null)<span>LCP {{ number_format($audit->lh_lcp_ms / 1000, 1) }}s</span>@endif
+          @if ($audit->lh_tbt_ms !== null)<span>TBT {{ $audit->lh_tbt_ms }}ms</span>@endif
+          @if ($audit->lh_cls !== null)<span>CLS {{ rtrim(rtrim(number_format($audit->lh_cls, 3), '0'), '.') }}</span>@endif
+        </div>
+
+        {{-- Lighthouse follows redirects. If it measured a different URL
+             from the one requested, say so - a report that quietly audits
+             somewhere else is worse than no report. --}}
+        @if ($audit->lighthouse_final_url && rtrim($audit->lighthouse_final_url, '/') !== rtrim($audit->url, '/'))
+          <div class="notice" style="margin-top:16px">
+            Redirected — the scan measured <strong>{{ $audit->lighthouse_final_url }}</strong>, not the URL as entered.
+          </div>
+        @endif
       </div>
 
-      {{-- Lighthouse follows redirects. If it measured a different URL
-           from the one requested, say so - a report that quietly audits
-           somewhere else is worse than no report. --}}
-      @if ($audit->lighthouse_final_url && rtrim($audit->lighthouse_final_url, '/') !== rtrim($audit->url, '/'))
-        <div class="notice" style="margin-top:16px">
-          Redirected — the scan measured <strong>{{ $audit->lighthouse_final_url }}</strong>, not the URL as entered.
+      @if ($audit->hasDesktopLighthouse())
+        @php
+          $desktopScores = $audit->lighthouse_desktop['scores'] ?? [];
+          $desktopMetrics = $audit->lighthouse_desktop['metrics'] ?? [];
+        @endphp
+        <div id="lh-desktop" class="tab-panel" style="margin-top:var(--sp-4); display:none">
+          <div class="gauges">
+            @foreach ([
+              'Performance' => $desktopScores['performance'] ?? null,
+              'SEO' => $desktopScores['seo'] ?? null,
+              'Accessibility' => $desktopScores['accessibility'] ?? null,
+              'Best practices' => $desktopScores['best-practices'] ?? null,
+            ] as $label => $value)
+              @php
+                $band = \App\Models\Audit::lighthouseBand($value);
+                $r = 46; $circumference = 2 * M_PI * $r;
+                $pct = $value !== null ? max(0, min(100, $value)) : 0;
+                $offset = $circumference * (1 - $pct / 100);
+              @endphp
+              <div class="gauge-card">
+                <div class="gauge">
+                  <svg viewBox="0 0 104 104">
+                    <circle class="gauge-track" cx="52" cy="52" r="{{ $r }}"/>
+                    <circle class="gauge-fill {{ $band }}" cx="52" cy="52" r="{{ $r }}"
+                      stroke-dasharray="{{ $circumference }}" stroke-dashoffset="{{ $offset }}"/>
+                  </svg>
+                  <div class="gauge-value">{{ $value !== null ? $value : '—' }}</div>
+                </div>
+                <div class="gauge-label">{{ $label }}</div>
+              </div>
+            @endforeach
+          </div>
+
+          <div class="vitals">
+            @if (($desktopMetrics['lcp_ms'] ?? null) !== null)<span>LCP {{ number_format($desktopMetrics['lcp_ms'] / 1000, 1) }}s</span>@endif
+            @if (($desktopMetrics['tbt_ms'] ?? null) !== null)<span>TBT {{ $desktopMetrics['tbt_ms'] }}ms</span>@endif
+            @if (($desktopMetrics['cls'] ?? null) !== null)<span>CLS {{ rtrim(rtrim(number_format($desktopMetrics['cls'], 3), '0'), '.') }}</span>@endif
+          </div>
+
+          @if (($audit->lighthouse_desktop['final_url'] ?? null) && rtrim($audit->lighthouse_desktop['final_url'], '/') !== rtrim($audit->url, '/'))
+            <div class="notice" style="margin-top:16px">
+              Redirected — the scan measured <strong>{{ $audit->lighthouse_desktop['final_url'] }}</strong>, not the URL as entered.
+            </div>
+          @endif
         </div>
       @endif
     </div>
@@ -213,55 +276,88 @@
        a group header carrying the issue count, each check a compact
        row with a status dot. Passes get one plain line; fails/warns
        get their detail shown inline, since that detail is the actual
-       advice, not something worth hiding behind a click. --}}
+       advice, not something worth hiding behind a click.
+
+       On-page findings are never strategy-specific, so they always
+       show. Performance findings are split into a mobile and a desktop
+       set (only one visible at a time, driven by the same toggle as
+       the gauges above) - "Improve image delivery" can genuinely flag
+       different images, or not flag anything at all, between the two. --}}
   @if ($findings->isNotEmpty())
+    @php
+      $onPageFindings = $findings->where('source', 'synthseo');
+      $mobileFindings = $findings->where('source', 'lighthouse')->where('strategy', 'mobile');
+      $desktopFindings = $findings->where('source', 'lighthouse')->where('strategy', 'desktop');
+    @endphp
     <div class="card reveal">
       <p class="subhead">All checks</p>
-      @foreach ($findings->groupBy('source') as $source => $group)
-        @php
-          $groupLabel = $source === 'lighthouse' ? 'Performance' : 'On-page';
-          $groupIssues = $group->whereIn('status', ['fail', 'warn'])->count();
-        @endphp
+
+      @if ($onPageFindings->isNotEmpty())
+        @php $onPageIssues = $onPageFindings->whereIn('status', ['fail', 'warn'])->count(); @endphp
         <div class="check-group">
-          <span class="check-group-title">{{ $groupLabel }}</span>
-          <span class="check-group-count {{ $groupIssues ? 'poor' : '' }}">
-            {{ $groupIssues ? $groupIssues . ' ' . \Illuminate\Support\Str::plural('issue', $groupIssues) : 'All good' }}
+          <span class="check-group-title">On-page</span>
+          <span class="check-group-count {{ $onPageIssues ? 'poor' : '' }}">
+            {{ $onPageIssues ? $onPageIssues . ' ' . \Illuminate\Support\Str::plural('issue', $onPageIssues) : 'All good' }}
           </span>
         </div>
-        @foreach ($group as $finding)
-          <div class="check-row">
-            <span class="check-dot {{ $finding->status }}"></span>
-            <div>
-              <div class="check-title">{{ $finding->title }}</div>
-              @if ($finding->status !== 'pass' && $finding->detail)
-                <div class="check-detail">{{ $finding->detail }}</div>
-              @endif
-              @if ($finding->status !== 'pass' && $finding->value)
-                <div class="check-value">{{ $finding->value }}</div>
-              @endif
-              {{-- The specific offending images, not just "reduce image
-                   sizes" as a generic sentence - real thumbnails at
-                   their real URLs, the same way Lighthouse's own web
-                   report shows them. See PageSpeedService::extractImages. --}}
-              @if ($finding->status !== 'pass' && ! empty($finding->images))
-                <div class="check-images">
-                  @foreach ($finding->images as $image)
-                    <a href="{{ $image['url'] }}" target="_blank" rel="noopener" class="check-image">
-                      <img src="{{ $image['url'] }}" loading="lazy" alt="">
-                      @if ($image['wasted_bytes'])
-                        <span class="check-image-savings">{{ number_format($image['wasted_bytes'] / 1024, 0) }} KiB to save</span>
-                      @endif
-                    </a>
-                  @endforeach
-                </div>
-              @endif
-            </div>
-          </div>
+        @foreach ($onPageFindings as $finding)
+          @include('audits.partials.finding-row', ['finding' => $finding])
         @endforeach
-      @endforeach
+      @endif
+
+      @if ($mobileFindings->isNotEmpty())
+        @php $mobileIssues = $mobileFindings->whereIn('status', ['fail', 'warn'])->count(); @endphp
+        <div id="checks-mobile" class="tab-panel">
+          <div class="check-group">
+            <span class="check-group-title">Performance (mobile)</span>
+            <span class="check-group-count {{ $mobileIssues ? 'poor' : '' }}">
+              {{ $mobileIssues ? $mobileIssues . ' ' . \Illuminate\Support\Str::plural('issue', $mobileIssues) : 'All good' }}
+            </span>
+          </div>
+          @foreach ($mobileFindings as $finding)
+            @include('audits.partials.finding-row', ['finding' => $finding])
+          @endforeach
+        </div>
+      @endif
+
+      @if ($desktopFindings->isNotEmpty())
+        @php $desktopIssues = $desktopFindings->whereIn('status', ['fail', 'warn'])->count(); @endphp
+        <div id="checks-desktop" class="tab-panel" style="display:none">
+          <div class="check-group">
+            <span class="check-group-title">Performance (desktop)</span>
+            <span class="check-group-count {{ $desktopIssues ? 'poor' : '' }}">
+              {{ $desktopIssues ? $desktopIssues . ' ' . \Illuminate\Support\Str::plural('issue', $desktopIssues) : 'All good' }}
+            </span>
+          </div>
+          @foreach ($desktopFindings as $finding)
+            @include('audits.partials.finding-row', ['finding' => $finding])
+          @endforeach
+        </div>
+      @endif
     </div>
   @elseif (! in_array($audit->status, ['queued', 'running']))
     <div class="card muted">No findings were recorded for this audit.</div>
   @endif
 </div>
+
+<script>
+function showStrategy(strategy) {
+  var mobileEls = ['lh-mobile', 'checks-mobile'];
+  var desktopEls = ['lh-desktop', 'checks-desktop'];
+  mobileEls.forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = strategy === 'mobile' ? '' : 'none';
+  });
+  desktopEls.forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = strategy === 'desktop' ? '' : 'none';
+  });
+  var mobileBtn = document.getElementById('strategy-btn-mobile');
+  var desktopBtn = document.getElementById('strategy-btn-desktop');
+  if (mobileBtn) mobileBtn.classList.toggle('active', strategy === 'mobile');
+  if (desktopBtn) desktopBtn.classList.toggle('active', strategy === 'desktop');
+  sessionStorage.setItem('auditStrategy', strategy);
+}
+showStrategy(sessionStorage.getItem('auditStrategy') || 'mobile');
+</script>
 @endsection

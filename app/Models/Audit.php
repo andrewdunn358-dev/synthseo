@@ -14,7 +14,7 @@ class Audit extends Model
         'http_status', 'response_ms', 'error', 'started_at', 'finished_at',
         'lh_performance', 'lh_seo', 'lh_accessibility', 'lh_best_practices',
         'lh_lcp_ms', 'lh_tbt_ms', 'lh_cls', 'lighthouse_strategy',
-        'lighthouse_final_url', 'lighthouse_error',
+        'lighthouse_final_url', 'lighthouse_error', 'lighthouse_desktop',
         'recommendations', 'recommendations_status', 'recommendations_error',
     ];
 
@@ -23,6 +23,7 @@ class Audit extends Model
         return [
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
+            'lighthouse_desktop' => 'array',
         ];
     }
 
@@ -49,6 +50,15 @@ class Audit extends Model
     public function hasLighthouse(): bool
     {
         return $this->lh_performance !== null || $this->lh_seo !== null;
+    }
+
+    /** Same shape of check as hasLighthouse(), against the JSON blob
+     *  instead of flat columns - see that migration's doc comment for
+     *  why desktop results live there rather than as ten more columns. */
+    public function hasDesktopLighthouse(): bool
+    {
+        return ($this->lighthouse_desktop['scores']['performance'] ?? null) !== null
+            || ($this->lighthouse_desktop['scores']['seo'] ?? null) !== null;
     }
 
     /** Google's own banding, so our colours match what a client sees

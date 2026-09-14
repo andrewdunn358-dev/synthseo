@@ -35,14 +35,9 @@
      for this to outlive the browser session) specifically because the
      page auto-refreshes every 5s while something is pending; without
      that, watching a social post generate would keep bouncing back to
-     the SEO tab on every reload. */
-  .tabs{ display:flex; gap:22px; margin-top:var(--sp-6); border-bottom:1px solid var(--border); }
-  .tab-btn{ background:none; border:0; border-bottom:2px solid transparent; color:var(--grey);
-            font:inherit; font-size:var(--fs-base); font-weight:600; padding:10px 2px; cursor:pointer;
-            transition:color .12s ease; }
-  .tab-btn:hover{ color:var(--paper); }
-  .tab-btn.active{ color:var(--paper); border-bottom-color:var(--brand); }
-  .tab-panel{ margin-top:0; }
+     the SEO tab on every reload. .tabs/.tab-btn/.tab-panel themselves
+     are shared in the layout now - only this page-specific reasoning
+     comment and the sessionStorage key below belong here. */
 
   /* Every workflow on this page (run an audit, find competitors,
      generate a draft...) was wrapped in an identical boxed card,

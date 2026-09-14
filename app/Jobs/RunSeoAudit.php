@@ -33,8 +33,10 @@ class RunSeoAudit implements ShouldQueue
     public int $tries = 2;
 
     /** Generous because PageSpeed alone can take 90 seconds on a slow
-     *  site, on top of our own three requests. */
-    public int $timeout = 240;
+     *  site - and this job now runs it twice, once per strategy, on
+     *  top of our own three requests. Worst case is close to 200s;
+     *  360 leaves real margin rather than cutting it close. */
+    public int $timeout = 360;
 
     public function __construct(public int $auditId)
     {
@@ -56,11 +58,15 @@ class RunSeoAudit implements ShouldQueue
 
         $result = $engine->run($audit->url);
 
-        // Lighthouse runs second and separately. Our own checks are the
-        // ones that must always produce a result - PageSpeed is a
-        // third-party call that fails routinely, and a rate limit at
-        // Google's end must not cost the client their audit.
-        $lighthouse = $pageSpeed->run($audit->url);
+        // Lighthouse runs second and separately, once per strategy -
+        // mobile and desktop give materially different numbers (see
+        // the lighthouse_desktop migration's doc comment), matching
+        // what PageSpeed Insights' own site shows. Our own checks are
+        // still the ones that must always produce a result - PageSpeed
+        // is a third-party call that fails routinely, and neither
+        // strategy failing should cost the client their audit.
+        $mobile = $pageSpeed->run($audit->url, 'mobile');
+        $desktop = $pageSpeed->run($audit->url, 'desktop');
 
         $audit->findings()->delete();
 
@@ -68,8 +74,12 @@ class RunSeoAudit implements ShouldQueue
             $audit->findings()->create($finding + ['source' => 'synthseo']);
         }
 
-        foreach ($lighthouse['findings'] as $finding) {
-            $audit->findings()->create($finding);
+        foreach ($mobile['findings'] as $finding) {
+            $audit->findings()->create($finding + ['strategy' => 'mobile']);
+        }
+
+        foreach ($desktop['findings'] as $finding) {
+            $audit->findings()->create($finding + ['strategy' => 'desktop']);
         }
 
         $audit->update([
@@ -78,16 +88,22 @@ class RunSeoAudit implements ShouldQueue
             'http_status' => $result['http_status'],
             'response_ms' => $result['response_ms'],
             'error' => $result['error'],
-            'lh_performance' => $lighthouse['scores']['performance'] ?? null,
-            'lh_seo' => $lighthouse['scores']['seo'] ?? null,
-            'lh_accessibility' => $lighthouse['scores']['accessibility'] ?? null,
-            'lh_best_practices' => $lighthouse['scores']['best-practices'] ?? null,
-            'lh_lcp_ms' => $lighthouse['metrics']['lcp_ms'] ?? null,
-            'lh_tbt_ms' => $lighthouse['metrics']['tbt_ms'] ?? null,
-            'lh_cls' => $lighthouse['metrics']['cls'] ?? null,
-            'lighthouse_strategy' => $lighthouse['strategy'],
-            'lighthouse_final_url' => $lighthouse['final_url'],
-            'lighthouse_error' => $lighthouse['error'],
+            'lh_performance' => $mobile['scores']['performance'] ?? null,
+            'lh_seo' => $mobile['scores']['seo'] ?? null,
+            'lh_accessibility' => $mobile['scores']['accessibility'] ?? null,
+            'lh_best_practices' => $mobile['scores']['best-practices'] ?? null,
+            'lh_lcp_ms' => $mobile['metrics']['lcp_ms'] ?? null,
+            'lh_tbt_ms' => $mobile['metrics']['tbt_ms'] ?? null,
+            'lh_cls' => $mobile['metrics']['cls'] ?? null,
+            'lighthouse_strategy' => $mobile['strategy'],
+            'lighthouse_final_url' => $mobile['final_url'],
+            'lighthouse_error' => $mobile['error'],
+            'lighthouse_desktop' => [
+                'scores' => $desktop['scores'],
+                'metrics' => $desktop['metrics'],
+                'final_url' => $desktop['final_url'],
+                'error' => $desktop['error'],
+            ],
             'finished_at' => now(),
         ]);
 
