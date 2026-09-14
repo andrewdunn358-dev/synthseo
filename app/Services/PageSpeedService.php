@@ -229,7 +229,7 @@ class PageSpeedService
                 continue;
             }
 
-            $title = $audit['title'] ?? null;
+            $title = $this->expandAcronyms($audit['title'] ?? null);
 
             if (! $title) {
                 continue;
@@ -243,7 +243,7 @@ class PageSpeedService
                     'status' => $score < 0.5 ? 'fail' : 'warn',
                     'severity' => $score < 0.5 ? 'medium' : 'low',
                     'title' => $title,
-                    'detail' => $this->cleanDescription($audit['description'] ?? null),
+                    'detail' => $this->expandAcronyms($this->cleanDescription($audit['description'] ?? null)),
                     'value' => $audit['displayValue'] ?? null,
                     'images' => $this->extractImages($audit),
                 ],
@@ -324,6 +324,45 @@ class PageSpeedService
         }
 
         return $images === [] ? null : $images;
+    }
+
+    /**
+     * Lighthouse's own titles/descriptions use bare acronyms ("LCP
+     * breakdown", "Avoid an excessive DOM size") that mean nothing to
+     * someone who's never heard of Core Web Vitals - the same problem
+     * the audit page's own vitals row had, but this text comes
+     * straight from Google's API response, not something this app
+     * wrote itself. A dictionary of known acronyms is more resilient
+     * than trying to rewrite Lighthouse's full title text case by
+     * case (which would need updating every time Google adds or
+     * renames an audit) - whatever the exact title is, expanding any
+     * of these acronyms it happens to contain still helps.
+     *
+     * Word-boundary, case-sensitive matching - Lighthouse always
+     * writes these uppercase, and a case-insensitive match risks
+     * mangling ordinary words that happen to share letters.
+     */
+    private const ACRONYM_EXPANSIONS = [
+        'LCP' => 'Largest Contentful Paint',
+        'TBT' => 'Total Blocking Time',
+        'CLS' => 'Cumulative Layout Shift',
+        'FCP' => 'First Contentful Paint',
+        'TTFB' => 'Time to First Byte',
+        'CDN' => 'Content Delivery Network',
+        'DOM' => 'page structure',
+    ];
+
+    private function expandAcronyms(?string $text): ?string
+    {
+        if ($text === null || $text === '') {
+            return $text;
+        }
+
+        foreach (self::ACRONYM_EXPANSIONS as $acronym => $expansion) {
+            $text = preg_replace('/\b' . preg_quote($acronym, '/') . '\b/', $expansion, $text);
+        }
+
+        return $text;
     }
 
     /**
