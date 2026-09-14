@@ -393,7 +393,13 @@ class ClaudeContentService
                 . "(caching, image optimisation, a specific setting's location), give the concrete instruction for "
                 . "this platform specifically rather than generic advice - name a real plugin or control panel "
                 . "area if you are confident one applies, but do not invent a specific plugin name or menu path "
-                . "you are not sure is accurate for this platform.\n";
+                . "you are not sure is accurate for this platform.\n"
+                . "For anything about caching or a CDN specifically: many hosting providers already include their "
+                . "own caching and CDN built into their control panel, which can conflict with or make redundant "
+                . "a third-party caching plugin installed on top of it. You do not know what this specific host "
+                . "includes, so before recommending a caching plugin, say to check the host's own control panel "
+                . "for a built-in caching or CDN setting first, and only install a plugin if the host doesn't "
+                . "already offer one.\n";
         }
 
         return <<<PROMPT
