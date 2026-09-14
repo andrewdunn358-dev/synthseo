@@ -58,23 +58,18 @@ class PageSpeedService
     ];
 
     /**
-     * Audits whose details.items table lists specific offending images
-     * with a real url - the same data Lighthouse's own web UI uses to
-     * show thumbnail previews (it's just the real image, rendered at
-     * its real URL, not separate embedded thumbnail data). Everywhere
-     * else in this class deliberately avoids hardcoding audit keys -
-     * see findings()'s own doc comment - but there is no key-agnostic
-     * way to know which checks are "about images" versus e.g. "about
-     * JavaScript files", so this one list is the necessary exception.
-     * If Google renames these in a future Lighthouse version, this
-     * enrichment silently stops adding thumbnails - the underlying
-     * finding and its plain-text description still work exactly as
-     * before, since this is additive to findings(), never a
-     * replacement for it. */
-    private const IMAGE_DETAIL_AUDITS = [
-        'properly-sized-images', 'uses-optimized-images', 'modern-image-formats',
-        'efficient-animated-content', 'unsized-images', 'uses-responsive-images',
-    ];
+     * Recognised image file extensions, checked against each details.item's
+     * url - not which audit reported it. The first version of this
+     * gated on a hardcoded list of "known image audit" keys
+     * (properly-sized-images, modern-image-formats, etc.), which broke
+     * on the very first real site tested: Lighthouse 13 merged all of
+     * those into a single image-delivery-insight audit, an ID that
+     * didn't exist when this was written. findings() itself already
+     * avoids exactly this trap by never hardcoding audit keys (see its
+     * own doc comment) - this enrichment now follows the same rule,
+     * checking what the flagged resource actually is rather than what
+     * Google currently calls the check that flagged it. */
+    private const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg'];
 
     /** Images captured per finding. A page can have dozens of
      *  offending images; four real examples make the point without
@@ -250,8 +245,7 @@ class PageSpeedService
                     'title' => $title,
                     'detail' => $this->cleanDescription($audit['description'] ?? null),
                     'value' => $audit['displayValue'] ?? null,
-                    'images' => in_array($key, self::IMAGE_DETAIL_AUDITS, true)
-                        ? $this->extractImages($audit) : null,
+                    'images' => $this->extractImages($audit),
                 ],
             ];
         }
@@ -270,6 +264,20 @@ class PageSpeedService
      * audit, and only 'url' is ever required. An item with no url at
      * all (some audits list a DOM node instead of a resource) is
      * silently skipped rather than guessed at.
+     *
+     * @return array<int, array{url:string,wasted_bytes:?int,total_bytes:?int}>|null
+     */
+    /**
+     * Pulls specific offending images (url, and whatever size/savings
+     * fields are present) out of one audit's details.items table -
+     * whichever audit that happens to be. See IMAGE_EXTENSIONS' own
+     * doc comment for why this checks the resource itself rather than
+     * which audit reported it.
+     *
+     * Defensive about field names on purpose beyond that: Lighthouse's
+     * per-item byte fields aren't perfectly consistent across every
+     * audit, and only 'url' (plus a recognised image extension) is
+     * ever required.
      *
      * @return array<int, array{url:string,wasted_bytes:?int,total_bytes:?int}>|null
      */
@@ -295,6 +303,12 @@ class PageSpeedService
             $url = $item['url'] ?? null;
 
             if (! is_string($url) || ! preg_match('#^https?://#i', $url)) {
+                continue;
+            }
+
+            $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
+
+            if (! in_array($extension, self::IMAGE_EXTENSIONS, true)) {
                 continue;
             }
 
