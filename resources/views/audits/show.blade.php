@@ -51,10 +51,6 @@
   .check-group-count.poor{ color:var(--poor); font-weight:600; }
 
   .check-row{ display:flex; align-items:flex-start; gap:10px; padding:9px 2px; }
-  .check-dot{ width:8px; height:8px; border-radius:50%; margin-top:7px; flex-shrink:0; }
-  .check-dot.fail{ background:var(--poor); }
-  .check-dot.warn{ background:var(--fair); }
-  .check-dot.pass{ background:var(--good); }
   .check-title{ font-size:var(--fs-sm); font-weight:500; }
   .check-detail{ font-size:var(--fs-xs); color:var(--grey); margin-top:3px; line-height:1.5; }
   .check-value{ font-family:'IBM Plex Mono',monospace; font-size:var(--fs-2xs); color:var(--grey-dim);

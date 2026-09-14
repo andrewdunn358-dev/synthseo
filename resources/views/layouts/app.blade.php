@@ -162,6 +162,15 @@
   .row .rtitle{ font-weight:600; font-size:var(--fs-md); }
   .row .rmeta{ font-size:var(--fs-xs); color:var(--grey); margin-top:2px; }
 
+  /* Small status dot used anywhere a compact list of pass/fail/warn
+     items needs a state indicator without wrapping every item in a
+     coloured pill - the audit page's own findings list, and the
+     shorter "your own audit" summary on the competitor page. */
+  .check-dot{ width:8px; height:8px; border-radius:50%; margin-top:7px; flex-shrink:0; display:inline-block; }
+  .check-dot.fail{ background:var(--poor); }
+  .check-dot.warn{ background:var(--fair); }
+  .check-dot.pass{ background:var(--good); }
+
   /* Subtle entrance for content that just finished generating (an
      audit completing, a draft appearing) - not decorative motion on
      things that were already there. Reduced-motion users get none. */
