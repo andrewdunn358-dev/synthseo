@@ -73,6 +73,48 @@ class Audit extends Model
         };
     }
 
+    /**
+     * Google's own official Core Web Vitals thresholds - LCP in ms,
+     * good <=2500, needs improvement <=4000, poor beyond that. Used so
+     * a bare "4.4s" on the audit page carries a colour band the same
+     * way the four category gauges do, rather than a number a
+     * non-technical reader has no way to judge as good or bad on
+     * their own.
+     */
+    public static function lcpBand(?int $ms): string
+    {
+        return match (true) {
+            $ms === null => 'unknown',
+            $ms <= 2500 => 'good',
+            $ms <= 4000 => 'fair',
+            default => 'poor',
+        };
+    }
+
+    /** TBT in ms - Lighthouse's own banding (not an official Core Web
+     *  Vital itself, but Lighthouse scores it the same way). */
+    public static function tbtBand(?int $ms): string
+    {
+        return match (true) {
+            $ms === null => 'unknown',
+            $ms <= 200 => 'good',
+            $ms <= 600 => 'fair',
+            default => 'poor',
+        };
+    }
+
+    /** CLS is a unitless score, not a time - good <=0.1, needs
+     *  improvement <=0.25, poor beyond. */
+    public static function clsBand(?float $score): string
+    {
+        return match (true) {
+            $score === null => 'unknown',
+            $score <= 0.1 => 'good',
+            $score <= 0.25 => 'fair',
+            default => 'poor',
+        };
+    }
+
     /** Counts for the summary line. The bare score meant nothing on its
      *  own - "3 to fix, 2 to review" is what a person can act on. */
     public function issueCounts(): array

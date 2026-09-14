@@ -31,8 +31,18 @@
                 font-size:var(--fs-sm); color:var(--grey); }
   .counts{ display:flex; gap:10px; flex-wrap:wrap; margin-top:var(--sp-4); }
 
-  .vitals{ display:flex; gap:26px; flex-wrap:wrap; margin-top:var(--sp-5);
-           font-family:'IBM Plex Mono',monospace; font-size:var(--fs-sm); color:var(--grey); }
+  {{-- Plain-English labels, not bare acronyms - "LCP 4.4s" means
+       nothing to someone who's never heard of Core Web Vitals. Colour
+       banded the same way the four gauges are, so a reader can tell
+       good from bad at a glance even without understanding what the
+       number itself means. Regular text, not the monospace treatment
+       the old acronym+number pairs used - these are sentences now,
+       not terse data values. --}}
+  .vitals{ display:flex; gap:26px; flex-wrap:wrap; margin-top:var(--sp-5); font-size:var(--fs-sm); }
+  .vitals .vital{ font-weight:500; color:var(--grey); }
+  .vitals .vital.good{ color:var(--good); }
+  .vitals .vital.fair{ color:var(--fair); }
+  .vitals .vital.poor{ color:var(--poor); }
 
   .article{ font-size:var(--fs-base); line-height:1.7; white-space:pre-wrap; }
 
@@ -206,9 +216,15 @@
         </div>
 
         <div class="vitals">
-          @if ($audit->lh_lcp_ms !== null)<span>LCP {{ number_format($audit->lh_lcp_ms / 1000, 1) }}s</span>@endif
-          @if ($audit->lh_tbt_ms !== null)<span>TBT {{ $audit->lh_tbt_ms }}ms</span>@endif
-          @if ($audit->lh_cls !== null)<span>CLS {{ rtrim(rtrim(number_format($audit->lh_cls, 3), '0'), '.') }}</span>@endif
+          @if ($audit->lh_lcp_ms !== null)
+            <span class="vital {{ \App\Models\Audit::lcpBand($audit->lh_lcp_ms) }}">Main content loads in {{ number_format($audit->lh_lcp_ms / 1000, 1) }}s</span>
+          @endif
+          @if ($audit->lh_tbt_ms !== null)
+            <span class="vital {{ \App\Models\Audit::tbtBand($audit->lh_tbt_ms) }}">Page unresponsive for {{ $audit->lh_tbt_ms }}ms while loading</span>
+          @endif
+          @if ($audit->lh_cls !== null)
+            <span class="vital {{ \App\Models\Audit::clsBand($audit->lh_cls) }}">Visual stability {{ rtrim(rtrim(number_format($audit->lh_cls, 3), '0'), '.') ?: '0' }}</span>
+          @endif
         </div>
 
         {{-- Lighthouse follows redirects. If it measured a different URL
@@ -255,9 +271,15 @@
           </div>
 
           <div class="vitals">
-            @if (($desktopMetrics['lcp_ms'] ?? null) !== null)<span>LCP {{ number_format($desktopMetrics['lcp_ms'] / 1000, 1) }}s</span>@endif
-            @if (($desktopMetrics['tbt_ms'] ?? null) !== null)<span>TBT {{ $desktopMetrics['tbt_ms'] }}ms</span>@endif
-            @if (($desktopMetrics['cls'] ?? null) !== null)<span>CLS {{ rtrim(rtrim(number_format($desktopMetrics['cls'], 3), '0'), '.') }}</span>@endif
+            @if (($desktopMetrics['lcp_ms'] ?? null) !== null)
+              <span class="vital {{ \App\Models\Audit::lcpBand($desktopMetrics['lcp_ms']) }}">Main content loads in {{ number_format($desktopMetrics['lcp_ms'] / 1000, 1) }}s</span>
+            @endif
+            @if (($desktopMetrics['tbt_ms'] ?? null) !== null)
+              <span class="vital {{ \App\Models\Audit::tbtBand($desktopMetrics['tbt_ms']) }}">Page unresponsive for {{ $desktopMetrics['tbt_ms'] }}ms while loading</span>
+            @endif
+            @if (($desktopMetrics['cls'] ?? null) !== null)
+              <span class="vital {{ \App\Models\Audit::clsBand($desktopMetrics['cls']) }}">Visual stability {{ rtrim(rtrim(number_format($desktopMetrics['cls'], 3), '0'), '.') ?: '0' }}</span>
+            @endif
           </div>
 
           @if (($audit->lighthouse_desktop['final_url'] ?? null) && rtrim($audit->lighthouse_desktop['final_url'], '/') !== rtrim($audit->url, '/'))

@@ -33,7 +33,7 @@
   .lh-good{ color:#1E8A5A; }
   .lh-fair{ color:#B8720C; }
   .lh-poor{ color:#C0392B; }
-  .vitals{ font-size:10px; color:#555; margin-top:8px; font-family: DejaVu Sans Mono, monospace; }
+  .vitals{ font-size:10px; color:#555; margin-top:8px; }
 
   .recommendations{ font-size:11px; line-height:1.6; background:#FAF6F1; border:1px solid #EEDFCF; padding:14px; border-radius:4px; }
 
@@ -90,9 +90,15 @@
       </tr>
     </table>
     <div class="vitals">
-      @if ($audit->lh_lcp_ms !== null)LCP {{ number_format($audit->lh_lcp_ms / 1000, 1) }}s &nbsp; @endif
-      @if ($audit->lh_tbt_ms !== null)TBT {{ $audit->lh_tbt_ms }}ms &nbsp; @endif
-      @if ($audit->lh_cls !== null)CLS {{ rtrim(rtrim(number_format($audit->lh_cls, 3), '0'), '.') }}@endif
+      @if ($audit->lh_lcp_ms !== null)
+        <span class="lh-{{ \App\Models\Audit::lcpBand($audit->lh_lcp_ms) }}">Main content loads in {{ number_format($audit->lh_lcp_ms / 1000, 1) }}s</span> &nbsp;
+      @endif
+      @if ($audit->lh_tbt_ms !== null)
+        <span class="lh-{{ \App\Models\Audit::tbtBand($audit->lh_tbt_ms) }}">Page unresponsive for {{ $audit->lh_tbt_ms }}ms while loading</span> &nbsp;
+      @endif
+      @if ($audit->lh_cls !== null)
+        <span class="lh-{{ \App\Models\Audit::clsBand($audit->lh_cls) }}">Visual stability {{ rtrim(rtrim(number_format($audit->lh_cls, 3), '0'), '.') ?: '0' }}</span>
+      @endif
     </div>
   @endif
 
