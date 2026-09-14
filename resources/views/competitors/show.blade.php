@@ -13,20 +13,20 @@
   a.back:hover{ color:var(--paper); }
 
   .vs-row{ display:flex; align-items:center; gap:var(--sp-4); margin-top:var(--sp-3); flex-wrap:wrap; }
-  .vs-domain{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:var(--fs-lg); }
+  .vs-domain{ font-family:'Inter',sans-serif; font-weight:650; font-size:var(--fs-lg); }
   .vs-sep{ color:var(--grey-dim); font-size:var(--fs-base); }
 
   .metrics{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-4); margin-top:var(--sp-2); }
   .metric-card{ text-align:center; padding:var(--sp-5) var(--sp-3); }
   .metric-card.leader{ border-color:var(--brand); }
-  .metric-num{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:32px; }
+  .metric-num{ font-family:'Inter',sans-serif; font-weight:650; font-size:var(--fs-metric); }
   .metric-label{ font-size:var(--fs-sm); color:var(--grey); margin-top:4px; }
   .metric-sub{ font-size:var(--fs-xs); color:var(--grey-dim); margin-top:10px; }
   .lead-tag{ display:inline-block; background:rgba(225,105,31,.14); color:var(--brand); font-size:var(--fs-2xs);
              font-weight:700; padding:3px 9px; border-radius:12px; margin-top:8px; }
   .metric-explain{ font-size:var(--fs-base); color:var(--grey); margin-top:14px; padding-top:14px;
                     border-top:1px solid var(--border); text-align:left; line-height:1.65; }
-  .verdict{ font-size:var(--fs-md); font-weight:600; font-family:'Space Grotesk',sans-serif; margin:0 0 8px; }
+  .verdict{ font-size:var(--fs-md); font-weight:650; font-family:'Inter',sans-serif; margin:0 0 8px; }
   .verdict.good{ color:var(--good); }
   .verdict.fair{ color:var(--fair); }
   .finding-line{ padding:7px 0; font-size:var(--fs-sm); }

@@ -6,7 +6,7 @@
 
   .summary{ display:flex; gap:var(--sp-6); flex-wrap:wrap; margin-top:var(--sp-3); }
   .summary-item{ }
-  .summary-num{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:28px; line-height:1; }
+  .summary-num{ font-family:'Inter',sans-serif; font-weight:650; font-size:var(--fs-metric); line-height:1; }
   .summary-num.poor{ color:var(--poor); }
   .summary-label{ font-size:var(--fs-xs); color:var(--grey); margin-top:2px; }
 

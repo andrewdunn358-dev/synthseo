@@ -31,11 +31,6 @@
                 font-size:var(--fs-sm); color:var(--grey); }
   .counts{ display:flex; gap:10px; flex-wrap:wrap; margin-top:var(--sp-4); }
 
-  /* Sentence-case subheadings carrying weight, not tracked-out capitals
-     doing the work with spacing instead of typography. */
-  .subhead{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:var(--fs-md);
-            margin:0 0 var(--sp-3); }
-
   .vitals{ display:flex; gap:26px; flex-wrap:wrap; margin-top:var(--sp-5);
            font-family:'IBM Plex Mono',monospace; font-size:var(--fs-sm); color:var(--grey); }
   .srctag{ font-size:var(--fs-2xs); letter-spacing:.05em; color:var(--grey-dim);
