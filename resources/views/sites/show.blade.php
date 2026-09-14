@@ -21,12 +21,6 @@
   .freq-row select{ background:var(--ink); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
                      padding:7px 10px; color:var(--paper); font:inherit; font-size:var(--fs-sm); }
 
-  .row{ display:flex; align-items:center; justify-content:space-between; gap:16px;
-        padding:14px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; text-decoration:none; color:inherit; }
-  .row:last-child{ border-bottom:0; }
-  .row .rtitle{ font-weight:600; }
-  .row .rmeta{ font-size:var(--fs-xs); color:var(--grey); margin-top:2px; }
-
   .topic-form{ display:flex; gap:10px; flex-wrap:wrap; margin-top:var(--sp-3); margin-bottom:var(--sp-2); }
   .topic-form input{ flex:1; min-width:240px; background:var(--ink); border:1px solid var(--border-strong);
                       border-radius:var(--radius-sm); padding:11px 13px; color:var(--paper); font:inherit; }
@@ -44,10 +38,21 @@
      the SEO tab on every reload. */
   .tabs{ display:flex; gap:22px; margin-top:var(--sp-6); border-bottom:1px solid var(--border); }
   .tab-btn{ background:none; border:0; border-bottom:2px solid transparent; color:var(--grey);
-            font:inherit; font-size:var(--fs-base); font-weight:600; padding:10px 2px; cursor:pointer; }
+            font:inherit; font-size:var(--fs-base); font-weight:600; padding:10px 2px; cursor:pointer;
+            transition:color .12s ease; }
   .tab-btn:hover{ color:var(--paper); }
   .tab-btn.active{ color:var(--paper); border-bottom-color:var(--brand); }
   .tab-panel{ margin-top:0; }
+
+  /* Every workflow on this page (run an audit, find competitors,
+     generate a draft...) was wrapped in an identical boxed card,
+     which made a page with seven distinct areas read as seven equally
+     weighted things rather than a page with real structure. None of
+     them are the one thing that should dominate the page the way AI
+     Recommendations does on the audit page, so all of them use the
+     lighter .section treatment instead - a heading and generous
+     spacing does the separating, not a background and a border. */
+  .section:first-of-type{ margin-top:var(--sp-6); }
 @endsection
 
 @section('content')
@@ -96,14 +101,14 @@
   </div>
 
   <div id="tab-seo" class="tab-panel">
-    <div class="card">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap">
-        <p class="subhead" style="margin:0">Run an audit</p>
+    <div class="section">
+      <div class="section-head">
+        <p class="subhead">Run an audit</p>
         <form method="POST" action="/sites/{{ $site->id }}/audits">
           @csrf<button class="btn btn-primary" type="submit">Run audit</button>
         </form>
       </div>
-      <form method="POST" action="/sites/{{ $site->id }}/audit-frequency" class="freq-row" style="margin-top:14px">
+      <form method="POST" action="/sites/{{ $site->id }}/audit-frequency" class="freq-row" style="margin-top:0">
         @csrf
         <label class="muted" style="font-size:var(--fs-sm)">Automatic audits:</label>
         <select name="audit_frequency" onchange="this.form.submit()">
@@ -117,16 +122,16 @@
       </form>
     </div>
 
-    <div class="card">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap">
-        <p class="subhead" style="margin:0">Competitor comparison</p>
+    <div class="section">
+      <div class="section-head">
+        <p class="subhead">Competitor comparison</p>
         <a class="btn btn-primary" href="/sites/{{ $site->id }}/competitors/lookup">Look up competitors</a>
       </div>
-      <p class="muted" style="margin:10px 0 0; font-size:var(--fs-sm)">
+      <p class="muted" style="margin:0 0 14px; font-size:var(--fs-sm)">
         Reads {{ $site->name }}'s own site to work out what kind of business it is, then searches live results for
         that plus its location. Needs a location set above first.
       </p>
-      <form method="POST" action="/sites/{{ $site->id }}/competitors/search" class="topic-form">
+      <form method="POST" action="/sites/{{ $site->id }}/competitors/search" class="topic-form" style="margin-top:0">
         @csrf
         <input type="text" name="query" placeholder="Or search a specific phrase yourself, e.g. &quot;IT support North Shields&quot;" required maxlength="255">
         <button class="btn" type="submit">Search</button>
@@ -159,7 +164,7 @@
       @endforelse
     </div>
 
-    <div class="card">
+    <div class="section">
       <p class="subhead">Audit history</p>
 
       @php
@@ -228,9 +233,9 @@
   </div>
 
   <div id="tab-marketing" class="tab-panel">
-    <div class="card">
+    <div class="section">
       <p class="subhead">Content drafts</p>
-      <form method="POST" action="/sites/{{ $site->id }}/content" class="topic-form">
+      <form method="POST" action="/sites/{{ $site->id }}/content" class="topic-form" style="margin-top:12px">
         @csrf
         <input type="text" name="topic" placeholder="Topic, e.g. &quot;why regular servicing matters&quot;" required maxlength="255">
         <button class="btn btn-primary" type="submit">Generate draft</button>
@@ -255,9 +260,9 @@
       @endforelse
     </div>
 
-    <div class="card">
+    <div class="section">
       <p class="subhead">Social posts</p>
-      <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">
+      <p class="muted" style="margin:8px 0 0; font-size:var(--fs-sm)">
         A caption and an image, ready to review and post yourself — nothing here posts anywhere automatically.
       </p>
       <form method="POST" action="/sites/{{ $site->id }}/social" class="topic-form">
@@ -292,9 +297,9 @@
       @endforelse
     </div>
 
-    <div class="card">
+    <div class="section">
       <p class="subhead">Newsletter</p>
-      <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">
+      <p class="muted" style="margin:8px 0 0; font-size:var(--fs-sm)">
         Drafted for review first — nothing sends to subscribers until you open it and click Send.
       </p>
       <form method="POST" action="/sites/{{ $site->id }}/newsletters" class="topic-form">
@@ -324,9 +329,9 @@
       @endforelse
     </div>
 
-    <div class="card">
+    <div class="section">
       <p class="subhead">Subscribers</p>
-      <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">
+      <p class="muted" style="margin:8px 0 0; font-size:var(--fs-sm)">
         Managed directly in Resend — nothing here is stored locally, so unsubscribes and bounces stay accurate
         automatically.
       </p>
