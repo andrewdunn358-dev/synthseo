@@ -65,7 +65,13 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Europe/London, not UTC - this is a UK product for UK small
+    // businesses, and every timestamp shown (audit history, "last
+    // checked", newsletter sent times) should read in the time a UK
+    // user actually experiences. Europe/London handles the GMT/BST
+    // switch automatically twice a year; a fixed offset would only be
+    // correct for half of it.
+    'timezone' => 'Europe/London',
 
     /*
     |--------------------------------------------------------------------------
