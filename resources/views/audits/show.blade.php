@@ -55,6 +55,13 @@
   .check-detail{ font-size:var(--fs-xs); color:var(--grey); margin-top:3px; line-height:1.5; }
   .check-value{ font-family:'IBM Plex Mono',monospace; font-size:var(--fs-2xs); color:var(--grey-dim);
                 margin-top:5px; word-break:break-word; }
+
+  .check-images{ display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; }
+  .check-image{ display:block; width:84px; text-decoration:none; }
+  .check-image img{ width:84px; height:64px; object-fit:cover; border-radius:var(--radius-sm);
+                     border:1px solid var(--border-strong); display:block; background:var(--panel-raised); }
+  .check-image-savings{ display:block; font-size:var(--fs-2xs); color:var(--grey-dim); margin-top:3px;
+                         text-align:center; }
 @endsection
 
 @section('content')
@@ -231,6 +238,22 @@
               @endif
               @if ($finding->status !== 'pass' && $finding->value)
                 <div class="check-value">{{ $finding->value }}</div>
+              @endif
+              {{-- The specific offending images, not just "reduce image
+                   sizes" as a generic sentence - real thumbnails at
+                   their real URLs, the same way Lighthouse's own web
+                   report shows them. See PageSpeedService::extractImages. --}}
+              @if ($finding->status !== 'pass' && ! empty($finding->images))
+                <div class="check-images">
+                  @foreach ($finding->images as $image)
+                    <a href="{{ $image['url'] }}" target="_blank" rel="noopener" class="check-image">
+                      <img src="{{ $image['url'] }}" loading="lazy" alt="">
+                      @if ($image['wasted_bytes'])
+                        <span class="check-image-savings">{{ number_format($image['wasted_bytes'] / 1024, 0) }} KiB to save</span>
+                      @endif
+                    </a>
+                  @endforeach
+                </div>
               @endif
             </div>
           </div>

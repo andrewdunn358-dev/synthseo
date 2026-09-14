@@ -57,6 +57,30 @@ class PageSpeedService
         'first-meaningful-paint', 'estimated-input-latency',
     ];
 
+    /**
+     * Audits whose details.items table lists specific offending images
+     * with a real url - the same data Lighthouse's own web UI uses to
+     * show thumbnail previews (it's just the real image, rendered at
+     * its real URL, not separate embedded thumbnail data). Everywhere
+     * else in this class deliberately avoids hardcoding audit keys -
+     * see findings()'s own doc comment - but there is no key-agnostic
+     * way to know which checks are "about images" versus e.g. "about
+     * JavaScript files", so this one list is the necessary exception.
+     * If Google renames these in a future Lighthouse version, this
+     * enrichment silently stops adding thumbnails - the underlying
+     * finding and its plain-text description still work exactly as
+     * before, since this is additive to findings(), never a
+     * replacement for it. */
+    private const IMAGE_DETAIL_AUDITS = [
+        'properly-sized-images', 'uses-optimized-images', 'modern-image-formats',
+        'efficient-animated-content', 'unsized-images', 'uses-responsive-images',
+    ];
+
+    /** Images captured per finding. A page can have dozens of
+     *  offending images; four real examples make the point without
+     *  the audit page turning into a gallery. */
+    private const MAX_IMAGES_PER_FINDING = 4;
+
     public function __construct(private ?string $apiKey = null)
     {
         // Optional. Without one PSI still answers, but rate-limits
@@ -226,6 +250,8 @@ class PageSpeedService
                     'title' => $title,
                     'detail' => $this->cleanDescription($audit['description'] ?? null),
                     'value' => $audit['displayValue'] ?? null,
+                    'images' => in_array($key, self::IMAGE_DETAIL_AUDITS, true)
+                        ? $this->extractImages($audit) : null,
                 ],
             ];
         }
@@ -234,6 +260,56 @@ class PageSpeedService
         usort($candidates, fn ($a, $b) => $a['score'] <=> $b['score']);
 
         return array_column(array_slice($candidates, 0, self::MAX_FINDINGS), 'finding');
+    }
+
+    /**
+     * Pulls specific offending images (url, and whatever size/savings
+     * fields are present) out of one audit's details.items table.
+     * Defensive about field names on purpose - Lighthouse's per-item
+     * byte fields aren't perfectly consistent across every image
+     * audit, and only 'url' is ever required. An item with no url at
+     * all (some audits list a DOM node instead of a resource) is
+     * silently skipped rather than guessed at.
+     *
+     * @return array<int, array{url:string,wasted_bytes:?int,total_bytes:?int}>|null
+     */
+    private function extractImages(array $audit): ?array
+    {
+        $items = $audit['details']['items'] ?? null;
+
+        if (! is_array($items) || $items === []) {
+            return null;
+        }
+
+        $images = [];
+
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            // Some audits nest the actual resource under a 'node' or
+            // 'subItems' structure rather than a flat url - only the
+            // flat, common shape is handled here. A miss just means
+            // no thumbnail for that particular item, not a crash.
+            $url = $item['url'] ?? null;
+
+            if (! is_string($url) || ! preg_match('#^https?://#i', $url)) {
+                continue;
+            }
+
+            $images[] = [
+                'url' => $url,
+                'wasted_bytes' => isset($item['wastedBytes']) ? (int) round($item['wastedBytes']) : null,
+                'total_bytes' => isset($item['totalBytes']) ? (int) round($item['totalBytes']) : null,
+            ];
+
+            if (count($images) >= self::MAX_IMAGES_PER_FINDING) {
+                break;
+            }
+        }
+
+        return $images === [] ? null : $images;
     }
 
     /**
