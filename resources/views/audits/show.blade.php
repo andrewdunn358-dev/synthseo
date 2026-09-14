@@ -131,7 +131,7 @@
           <span class="muted">Writing the recommendations — this updates itself, no need to refresh.</span>
         </div>
       @else
-        <p class="muted" style="margin:0 0 16px">Turn the findings below into a short, prioritised action plan — written for someone who isn't an SEO specialist.</p>
+        <p class="muted" style="margin:0 0 16px">Turn the findings below into a step-by-step plan — written for someone who's never touched a website admin panel, not just someone who isn't an SEO specialist.</p>
         @if ($audit->recommendations_error)
           <div class="notice" style="margin-top:0">{{ $audit->recommendations_error }}</div>
         @endif

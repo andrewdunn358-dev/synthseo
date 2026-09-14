@@ -159,6 +159,13 @@ class ClaudeContentService
      * every audit - see the migration's doc comment - so this is only
      * ever called once someone has actually asked for it.
      *
+     * Written for genuinely zero technical background, not just
+     * "plain English" - literal numbered steps (where to log in, what
+     * to click) rather than advice that still assumes someone knows
+     * how to find their way around a website admin panel. Many of the
+     * people reading this have never done that and aren't developers
+     * at all.
+     *
      * $competitorContext, when present, is folded into the prompt so
      * Claude can weight advice against a real comparison ("you're
      * behind on X, which likely relates to this fix") rather than
@@ -187,7 +194,10 @@ class ClaudeContentService
             return array_merge($empty, ['error' => 'Nothing to summarise - this audit has no failing or warning findings.']);
         }
 
-        $result = $this->callClaude($this->recommendationsPrompt($findings, $siteName, $siteUrl, $competitorContext, $stackContext), 1024);
+        // 1024 -> 1536: genuinely numbered, literal steps for 2-4 items
+        // run longer than the old "plain paragraphs" version did, and a
+        // walkthrough cut off mid-step is worse than a short one.
+        $result = $this->callClaude($this->recommendationsPrompt($findings, $siteName, $siteUrl, $competitorContext, $stackContext), 1536);
 
         if ($result['error']) {
             return array_merge($empty, ['error' => $result['error']]);
@@ -392,11 +402,26 @@ class ClaudeContentService
 
         {$findingsList}
         {$competitorLine}{$stackLine}
-        Write a short, prioritised action plan a non-technical business
-        owner can actually use: which 2-4 things matter most and why,
-        in plain English, no jargon left unexplained. Skip anything
-        trivial. No headers, no markdown - plain paragraphs, under 250
-        words.
+        Write a prioritised action plan for someone who may never have
+        used a website admin panel before and may not be a developer at
+        all - assume genuinely zero technical background, not just
+        "keep it simple." For each of the 2-4 things that matter most:
+
+        - One plain sentence on what it is and why it matters. Explain
+          any jargon the first time you use it (a "meta description",
+          an "H1 heading") rather than assuming it's already understood.
+        - Then literal, numbered steps to actually do it: where to log
+          in, which exact menu or button to click, what to search for
+          or type. If the platform is known, name the real menu, button,
+          or plugin - do not invent one you are not confident is
+          accurate for that platform. If the platform is not known, say
+          plainly to ask whoever manages the website to make this change,
+          rather than guessing at menus that might not exist for them.
+
+        Skip anything trivial. No markdown headers, but numbered steps
+        within each item are expected, not optional - that literal
+        walkthrough is the actual point of this. Long enough to really
+        walk someone through it; not padded with filler.
         PROMPT;
     }
 
