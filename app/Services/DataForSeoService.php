@@ -205,8 +205,16 @@ class DataForSeoService
 
         $items = $task['result'][0]['items'] ?? [];
 
-        $domains = array_values(array_filter(array_map(function (array $item) {
+        $domains = array_values(array_filter(array_map(function (array $item) use ($target) {
             if (! isset($item['domain'])) {
+                return null;
+            }
+
+            // DataForSEO can include the target itself in results (it
+            // trivially "overlaps" with all its own keywords) - never
+            // a competitor of itself, so filtered out here rather than
+            // trusting the API to exclude what should be obvious.
+            if (strcasecmp($item['domain'], $target) === 0) {
                 return null;
             }
 
