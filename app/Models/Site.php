@@ -38,6 +38,11 @@ class Site extends Model
         return $this->hasMany(CompetitorComparison::class)->latest();
     }
 
+    public function socialPosts()
+    {
+        return $this->hasMany(SocialPost::class)->latest();
+    }
+
     /**
      * Days between scheduled runs for each frequency. 'off' never
      * appears here - callers check that before reaching this.

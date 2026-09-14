@@ -4,7 +4,7 @@
 {{-- Same rule as the audit page: refresh only while something is
      actually pending, and stop the moment it isn't. Content pending
      counts too, so a generating draft also keeps this page live. --}}
-@if ($audits->contains(fn ($a) => in_array($a->status, ['queued', 'running'])) || $content->contains(fn ($c) => $c->isPending()) || $competitors->contains(fn ($c) => $c->isPending()))
+@if ($audits->contains(fn ($a) => in_array($a->status, ['queued', 'running'])) || $content->contains(fn ($c) => $c->isPending()) || $competitors->contains(fn ($c) => $c->isPending()) || $socialPosts->contains(fn ($p) => $p->isPending()))
   @section('head')
     <meta http-equiv="refresh" content="5">
   @endsection
@@ -145,6 +145,43 @@
       </a>
     @empty
       <div class="muted" style="margin-top:10px">No comparisons yet. Enter a competitor's domain above.</div>
+    @endforelse
+  </div>
+
+  <div class="card">
+    <p class="subhead">Social posts</p>
+    <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">
+      A caption and an image, ready to review and post yourself — nothing here posts anywhere automatically.
+    </p>
+    <form method="POST" action="/sites/{{ $site->id }}/social" class="topic-form">
+      @csrf
+      <select name="platform" style="background:var(--ink); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+              padding:11px 12px; color:var(--paper); font:inherit; font-size:var(--fs-base)">
+        <option value="general">General</option>
+        <option value="instagram">Instagram</option>
+        <option value="facebook">Facebook</option>
+        <option value="linkedin">LinkedIn</option>
+      </select>
+      <input type="text" name="topic" placeholder="Topic, e.g. &quot;spring MOT check reminder&quot;" required maxlength="255">
+      <button class="btn btn-primary" type="submit">Generate post</button>
+    </form>
+
+    @forelse ($socialPosts as $post)
+      <a class="row" href="/social/{{ $post->id }}">
+        <div>
+          <div class="rtitle" style="text-transform:capitalize">{{ $post->platform }} — {{ $post->topic }}</div>
+          <div class="rmeta">{{ $post->created_at->format('j M Y, H:i') }} · {{ ucfirst($post->status) }}</div>
+        </div>
+        @if ($post->status === 'completed')
+          <span class="badge good">Ready</span>
+        @elseif ($post->status === 'failed')
+          <span class="badge poor">Failed</span>
+        @else
+          <span class="badge unknown">—</span>
+        @endif
+      </a>
+    @empty
+      <div class="muted" style="margin-top:10px">No posts yet. Pick a platform and topic above.</div>
     @endforelse
   </div>
 

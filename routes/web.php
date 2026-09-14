@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompetitorController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\SiteController;
+use App\Http\Controllers\SocialPostController;
 
 Route::get('/', function () {
     return response()->file(public_path('index.html'));
@@ -39,4 +40,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/sites/{site}/competitors/search', [CompetitorController::class, 'search']);
     Route::post('/sites/{site}/competitors', [CompetitorController::class, 'store']);
     Route::get('/competitors/{comparison}', [CompetitorController::class, 'show']);
+
+    Route::post('/sites/{site}/social', [SocialPostController::class, 'store']);
+    Route::get('/social/{post}', [SocialPostController::class, 'show']);
 });

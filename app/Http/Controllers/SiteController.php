@@ -42,8 +42,9 @@ class SiteController extends Controller
         $audits = $site->audits()->with('findings')->paginate(20);
         $content = $site->content()->limit(10)->get();
         $competitors = $site->competitorComparisons()->limit(10)->get();
+        $socialPosts = $site->socialPosts()->limit(10)->get();
 
-        return view('sites.show', compact('site', 'audits', 'content', 'competitors'));
+        return view('sites.show', compact('site', 'audits', 'content', 'competitors', 'socialPosts'));
     }
 
     public function destroy(Site $site)

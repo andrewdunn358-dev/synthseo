@@ -53,6 +53,15 @@ return [
         'sandbox' => env('DATAFORSEO_SANDBOX', true),
     ],
 
+    /*
+     | OpenAI - used for social post image generation only (gpt-image-1).
+     | Separate account/key from Anthropic - Claude has no image
+     | generation, this is a different vendor for a different job.
+     */
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],

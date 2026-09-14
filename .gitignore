@@ -27,3 +27,9 @@ Thumbs.db
 *.sqlite
 *.zip
 /laravel12-35313133388d
+
+# Generated at runtime by OpenAiImageService - never source, never
+# committed. Same lesson as the tracked sqlite db earlier: a careless
+# `git add -A` on the server would otherwise start tracking every
+# generated social post image.
+/public/social-images

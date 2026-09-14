@@ -70,6 +70,28 @@ class ClaudeContentService
     }
 
     /**
+     * A short social caption tailored to one platform's actual voice,
+     * not one generic paragraph reused everywhere. LinkedIn readers and
+     * Instagram readers expect genuinely different things from the same
+     * business - treating them identically reads as not having
+     * bothered, which is worse than not posting at all.
+     *
+     * @return array{caption:?string,model:?string,error:?string}
+     */
+    public function generateSocialCaption(string $topic, string $platform, string $siteName, string $siteUrl): array
+    {
+        $empty = ['caption' => null, 'model' => null, 'error' => null];
+
+        $result = $this->callClaude($this->socialCaptionPrompt($topic, $platform, $siteName, $siteUrl), 512);
+
+        if ($result['error']) {
+            return array_merge($empty, ['error' => $result['error']]);
+        }
+
+        return ['caption' => trim($result['text']), 'model' => self::MODEL, 'error' => null];
+    }
+
+    /**
      * Turns an audit's failing/warning findings into a short, prioritised
      * plain-English action plan. Deliberately NOT run automatically with
      * every audit - see the migration's doc comment - so this is only
@@ -179,6 +201,37 @@ class ClaudeContentService
         Then a blank line, then the article body in plain paragraphs
         (no markdown headers, no bullet lists unless the content
         genuinely calls for a short list).
+        PROMPT;
+    }
+
+    private function socialCaptionPrompt(string $topic, string $platform, string $siteName, string $siteUrl): string
+    {
+        // Platform voice as instructions, not just a label - "write for
+        // LinkedIn" without saying what that actually means in practice
+        // tends to produce the same generic paragraph as everywhere
+        // else, just with the platform name substituted in.
+        $voice = match ($platform) {
+            'instagram' => 'Instagram: short, punchy, 2-4 lines max, a warm/conversational tone, light appropriate '
+                . 'emoji use (not excessive), end with 3-5 relevant hashtags on their own line.',
+            'linkedin' => 'LinkedIn: professional but not stiff, focused on the business value or expertise being '
+                . 'shown, 3-5 sentences, no emoji, no hashtags unless one or two genuinely fit.',
+            'facebook' => 'Facebook: friendly and conversational, like talking to a regular customer, 2-4 sentences, '
+                . 'minimal or no hashtags.',
+            default => 'General use across platforms: clear and friendly, 2-4 sentences, no heavy platform-specific '
+                . 'styling (safe to reuse as-is on most platforms).',
+        };
+
+        return <<<PROMPT
+        Write a social media post caption for {$siteName} ({$siteUrl}) about:
+        "{$topic}"
+
+        Platform and voice: {$voice}
+
+        Write like a real local business owner, not a marketing
+        department - specific and genuine, no generic filler like
+        "check out our amazing services!". Output only the caption
+        text itself, nothing else - no explanation, no options, no
+        quotation marks around it.
         PROMPT;
     }
 
