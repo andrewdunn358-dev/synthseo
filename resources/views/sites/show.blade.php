@@ -33,6 +33,21 @@
 
   .trend{ margin:14px 0 6px; }
   .trend-meta{ font-size:var(--fs-2xs); display:flex; justify-content:space-between; margin-top:6px; }
+
+  /* Two tabs, nothing fancier - SEO and Marketing were sharing one
+     long scroll of cards, and that got unreadable once social posts
+     landed alongside audits, comparisons, and content drafts. Active
+     tab remembered in sessionStorage (not localStorage - no reason
+     for this to outlive the browser session) specifically because the
+     page auto-refreshes every 5s while something is pending; without
+     that, watching a social post generate would keep bouncing back to
+     the SEO tab on every reload. */
+  .tabs{ display:flex; gap:22px; margin-top:var(--sp-6); border-bottom:1px solid var(--border); }
+  .tab-btn{ background:none; border:0; border-bottom:2px solid transparent; color:var(--grey);
+            font:inherit; font-size:var(--fs-base); font-weight:600; padding:10px 2px; cursor:pointer; }
+  .tab-btn:hover{ color:var(--paper); }
+  .tab-btn.active{ color:var(--paper); border-bottom-color:var(--brand); }
+  .tab-panel{ margin-top:0; }
 @endsection
 
 @section('content')
@@ -43,23 +58,7 @@
       <h1>{{ $site->name }}</h1>
       <div class="url">{{ $site->url }}</div>
     </div>
-    <form method="POST" action="/sites/{{ $site->id }}/audits">
-      @csrf<button class="btn btn-primary" type="submit">Run audit</button>
-    </form>
   </div>
-
-  <form method="POST" action="/sites/{{ $site->id }}/audit-frequency" class="freq-row">
-    @csrf
-    <label class="muted" style="font-size:var(--fs-sm)">Automatic audits:</label>
-    <select name="audit_frequency" onchange="this.form.submit()">
-      <option value="off" @selected($site->audit_frequency === 'off')>Off</option>
-      <option value="weekly" @selected($site->audit_frequency === 'weekly')>Weekly</option>
-      <option value="monthly" @selected($site->audit_frequency === 'monthly')>Monthly</option>
-    </select>
-    @if ($site->audit_frequency !== 'off' && $site->next_audit_at)
-      <span class="muted" style="font-size:var(--fs-sm)">Next: {{ $site->next_audit_at->format('j M, H:i') }}</span>
-    @endif
-  </form>
 
   {{-- CMS is auto-detected from the last audit crawl (see
        SeoAuditService::detectCms) - shown, not editable, since it's a
@@ -67,7 +66,9 @@
        hosting providers aren't reliably detectable from outside, and
        this is one field to fill in rather than infrastructure to
        build for something already known. Both feed the AI
-       recommendations prompt so advice can be platform-specific. --}}
+       recommendations prompt so advice can be platform-specific. Kept
+       outside the tabs - it's site-level information, not specific to
+       either SEO or marketing work. --}}
   <form method="POST" action="/sites/{{ $site->id }}/host" class="freq-row">
     @csrf
     @if ($site->cms)
@@ -83,173 +84,214 @@
 
   @if (session('status'))<div class="flash">{{ session('status') }}</div>@endif
 
-  <div class="card">
-    <p class="subhead">Content drafts</p>
-    <form method="POST" action="/sites/{{ $site->id }}/content" class="topic-form">
-      @csrf
-      <input type="text" name="topic" placeholder="Topic, e.g. &quot;why regular servicing matters&quot;" required maxlength="255">
-      <button class="btn btn-primary" type="submit">Generate draft</button>
-    </form>
-
-    @forelse ($content as $piece)
-      <a class="row" href="/content/{{ $piece->id }}">
-        <div>
-          <div class="rtitle">{{ $piece->title ?? $piece->topic }}</div>
-          <div class="rmeta">{{ $piece->created_at->format('j M Y, H:i') }} · {{ ucfirst($piece->status) }}</div>
-        </div>
-        @if ($piece->status === 'completed')
-          <span class="badge good">{{ $piece->word_count }} words</span>
-        @elseif ($piece->status === 'failed')
-          <span class="badge poor">Failed</span>
-        @else
-          <span class="badge unknown">—</span>
-        @endif
-      </a>
-    @empty
-      <div class="muted" style="margin-top:10px">No drafts yet. Enter a topic above to generate the first one.</div>
-    @endforelse
+  <div class="tabs">
+    <button type="button" class="tab-btn" id="tab-btn-seo" onclick="showSiteTab('seo')">SEO</button>
+    <button type="button" class="tab-btn" id="tab-btn-marketing" onclick="showSiteTab('marketing')">Marketing</button>
   </div>
 
-  <div class="card">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap">
-      <p class="subhead" style="margin:0">Competitor comparison</p>
-      <a class="btn" href="/sites/{{ $site->id }}/competitors/discover">Find competitors automatically</a>
-    </div>
-    <form method="POST" action="/sites/{{ $site->id }}/competitors" class="topic-form">
-      @csrf
-      <input type="text" name="competitor_domain" placeholder="Competitor domain, e.g. example.co.uk" required maxlength="255">
-      <button class="btn btn-primary" type="submit">Compare</button>
-    </form>
-    <form method="POST" action="/sites/{{ $site->id }}/competitors/search" class="topic-form" style="margin-top:10px">
-      @csrf
-      <input type="text" name="query" placeholder="Or search what a customer would type, e.g. &quot;IT support North Shields&quot;" required maxlength="255">
-      <button class="btn" type="submit">Search live results</button>
-    </form>
-
-    @forelse ($competitors as $comparison)
-      <a class="row" href="/competitors/{{ $comparison->id }}">
-        <div>
-          <div class="rtitle">vs {{ $comparison->competitor_domain }}</div>
-          <div class="rmeta">{{ $comparison->created_at->format('j M Y, H:i') }} · {{ ucfirst($comparison->status) }}</div>
-        </div>
-        @if ($comparison->status === 'completed')
-          @php
-            $leadsThem = $comparison->leader() === 'us';
-          @endphp
-          <span class="badge {{ $leadsThem ? 'good' : 'fair' }}">{{ $leadsThem ? 'Ahead' : 'Behind' }}</span>
-        @elseif ($comparison->status === 'failed')
-          <span class="badge poor">Failed</span>
-        @else
-          <span class="badge unknown">—</span>
-        @endif
-      </a>
-    @empty
-      <div class="muted" style="margin-top:10px">No comparisons yet. Enter a competitor's domain above.</div>
-    @endforelse
-  </div>
-
-  <div class="card">
-    <p class="subhead">Social posts</p>
-    <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">
-      A caption and an image, ready to review and post yourself — nothing here posts anywhere automatically.
-    </p>
-    <form method="POST" action="/sites/{{ $site->id }}/social" class="topic-form">
-      @csrf
-      <select name="platform" style="background:var(--ink); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
-              padding:11px 12px; color:var(--paper); font:inherit; font-size:var(--fs-base)">
-        <option value="general">General</option>
-        <option value="instagram">Instagram</option>
-        <option value="facebook">Facebook</option>
-        <option value="linkedin">LinkedIn</option>
-      </select>
-      <input type="text" name="topic" placeholder="Topic, e.g. &quot;spring MOT check reminder&quot;" required maxlength="255">
-      <button class="btn btn-primary" type="submit">Generate post</button>
-    </form>
-
-    @forelse ($socialPosts as $post)
-      <a class="row" href="/social/{{ $post->id }}">
-        <div>
-          <div class="rtitle" style="text-transform:capitalize">{{ $post->platform }} — {{ $post->topic }}</div>
-          <div class="rmeta">{{ $post->created_at->format('j M Y, H:i') }} · {{ ucfirst($post->status) }}</div>
-        </div>
-        @if ($post->status === 'completed')
-          <span class="badge good">Ready</span>
-        @elseif ($post->status === 'failed')
-          <span class="badge poor">Failed</span>
-        @else
-          <span class="badge unknown">—</span>
-        @endif
-      </a>
-    @empty
-      <div class="muted" style="margin-top:10px">No posts yet. Pick a platform and topic above.</div>
-    @endforelse
-  </div>
-
-  <div class="card">
-    <p class="subhead">Audit history</p>
-
-    @php
-      // Oldest-to-newest for a left-to-right trend, current page only -
-      // a sparkline spanning a pagination boundary would be reading two
-      // different time windows as one continuous line.
-      //
-      // Plots fail-count, not $audit->score. The score field still
-      // exists on the row but audits/show deliberately stopped
-      // displaying it - it's an invented weighting that moved between
-      // runs when response time crossed a threshold, and told a reader
-      // nothing on its own. "Fail count" is the same honest measure
-      // already used everywhere else on this page; a downward line
-      // means real progress, not a shifted internal number.
-      $trend = $audits->filter(fn ($a) => $a->status === 'completed')->reverse()->values();
-    @endphp
-
-    @if ($trend->count() >= 2)
-      @php
-        $w = 100; $h = 34; $pad = 3;
-        $failCounts = $trend->map(fn ($a) => $a->issueCounts()['fail']);
-        $max = max(1, $failCounts->max());
-        $min = 0;
-        $range = max(1, $max - $min);
-        $step = ($w - $pad * 2) / ($trend->count() - 1);
-        $points = $failCounts->values()->map(function ($fails, $i) use ($step, $pad, $h, $min, $range) {
-          $x = $pad + $i * $step;
-          $y = $h - (($fails - $min) / $range) * ($h - $pad * 2) - $pad;
-          return round($x, 1) . ',' . round($y, 1);
-        })->implode(' ');
-      @endphp
-      <div class="trend">
-        <svg viewBox="0 0 {{ $w }} {{ $h }}" preserveAspectRatio="none" style="width:100%;height:48px;display:block">
-          <polyline points="{{ $points }}" fill="none" stroke="var(--brand)" stroke-width="1.6"
-            stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-        </svg>
-        <div class="muted trend-meta">
-          <span>{{ $failCounts->first() }} to fix on {{ $trend->first()->created_at->format('j M') }}</span>
-          <span>{{ $failCounts->last() }} to fix on {{ $trend->last()->created_at->format('j M') }}</span>
-        </div>
+  <div id="tab-seo" class="tab-panel">
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap">
+        <p class="subhead" style="margin:0">Run an audit</p>
+        <form method="POST" action="/sites/{{ $site->id }}/audits">
+          @csrf<button class="btn btn-primary" type="submit">Run audit</button>
+        </form>
       </div>
-    @endif
-
-    @forelse ($audits as $audit)
-      <a class="row" href="/audits/{{ $audit->id }}">
-        <div>
-          <div class="rtitle">{{ $audit->created_at->format('j M Y, H:i') }}</div>
-          <div class="rmeta">{{ ucfirst($audit->status) }}</div>
-        </div>
-        @if ($audit->status === 'completed')
-          @php
-            $c = $audit->issueCounts();
-          @endphp
-          <span class="badge {{ $c['fail'] ? 'poor' : ($c['warn'] ? 'fair' : 'good') }}">
-            {{ $c['fail'] }} to fix · {{ $c['warn'] }} to review
-          </span>
-        @else
-          <span class="badge unknown">—</span>
+      <form method="POST" action="/sites/{{ $site->id }}/audit-frequency" class="freq-row" style="margin-top:14px">
+        @csrf
+        <label class="muted" style="font-size:var(--fs-sm)">Automatic audits:</label>
+        <select name="audit_frequency" onchange="this.form.submit()">
+          <option value="off" @selected($site->audit_frequency === 'off')>Off</option>
+          <option value="weekly" @selected($site->audit_frequency === 'weekly')>Weekly</option>
+          <option value="monthly" @selected($site->audit_frequency === 'monthly')>Monthly</option>
+        </select>
+        @if ($site->audit_frequency !== 'off' && $site->next_audit_at)
+          <span class="muted" style="font-size:var(--fs-sm)">Next: {{ $site->next_audit_at->format('j M, H:i') }}</span>
         @endif
-      </a>
-    @empty
-      <div class="muted" style="margin-top:10px">No audits yet. Run the first one above.</div>
-    @endforelse
-    <div style="margin-top:16px">{{ $audits->links() }}</div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap">
+        <p class="subhead" style="margin:0">Competitor comparison</p>
+        <a class="btn" href="/sites/{{ $site->id }}/competitors/discover">Find competitors automatically</a>
+      </div>
+      <form method="POST" action="/sites/{{ $site->id }}/competitors" class="topic-form">
+        @csrf
+        <input type="text" name="competitor_domain" placeholder="Competitor domain, e.g. example.co.uk" required maxlength="255">
+        <button class="btn btn-primary" type="submit">Compare</button>
+      </form>
+      <form method="POST" action="/sites/{{ $site->id }}/competitors/search" class="topic-form" style="margin-top:10px">
+        @csrf
+        <input type="text" name="query" placeholder="Or search what a customer would type, e.g. &quot;IT support North Shields&quot;" required maxlength="255">
+        <button class="btn" type="submit">Search live results</button>
+      </form>
+
+      @forelse ($competitors as $comparison)
+        <a class="row" href="/competitors/{{ $comparison->id }}">
+          <div>
+            <div class="rtitle">vs {{ $comparison->competitor_domain }}</div>
+            <div class="rmeta">{{ $comparison->created_at->format('j M Y, H:i') }} · {{ ucfirst($comparison->status) }}</div>
+          </div>
+          @if ($comparison->status === 'completed')
+            @php
+              $leadsThem = $comparison->leader() === 'us';
+            @endphp
+            <span class="badge {{ $leadsThem ? 'good' : 'fair' }}">{{ $leadsThem ? 'Ahead' : 'Behind' }}</span>
+          @elseif ($comparison->status === 'failed')
+            <span class="badge poor">Failed</span>
+          @else
+            <span class="badge unknown">—</span>
+          @endif
+        </a>
+      @empty
+        <div class="muted" style="margin-top:10px">No comparisons yet. Enter a competitor's domain above.</div>
+      @endforelse
+    </div>
+
+    <div class="card">
+      <p class="subhead">Audit history</p>
+
+      @php
+        // Oldest-to-newest for a left-to-right trend, current page only -
+        // a sparkline spanning a pagination boundary would be reading two
+        // different time windows as one continuous line.
+        //
+        // Plots fail-count, not $audit->score. The score field still
+        // exists on the row but audits/show deliberately stopped
+        // displaying it - it's an invented weighting that moved between
+        // runs when response time crossed a threshold, and told a reader
+        // nothing on its own. "Fail count" is the same honest measure
+        // already used everywhere else on this page; a downward line
+        // means real progress, not a shifted internal number.
+        $trend = $audits->filter(fn ($a) => $a->status === 'completed')->reverse()->values();
+      @endphp
+
+      @if ($trend->count() >= 2)
+        @php
+          $w = 100; $h = 34; $pad = 3;
+          $failCounts = $trend->map(fn ($a) => $a->issueCounts()['fail']);
+          $max = max(1, $failCounts->max());
+          $min = 0;
+          $range = max(1, $max - $min);
+          $step = ($w - $pad * 2) / ($trend->count() - 1);
+          $points = $failCounts->values()->map(function ($fails, $i) use ($step, $pad, $h, $min, $range) {
+            $x = $pad + $i * $step;
+            $y = $h - (($fails - $min) / $range) * ($h - $pad * 2) - $pad;
+            return round($x, 1) . ',' . round($y, 1);
+          })->implode(' ');
+        @endphp
+        <div class="trend">
+          <svg viewBox="0 0 {{ $w }} {{ $h }}" preserveAspectRatio="none" style="width:100%;height:48px;display:block">
+            <polyline points="{{ $points }}" fill="none" stroke="var(--brand)" stroke-width="1.6"
+              stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+          </svg>
+          <div class="muted trend-meta">
+            <span>{{ $failCounts->first() }} to fix on {{ $trend->first()->created_at->format('j M') }}</span>
+            <span>{{ $failCounts->last() }} to fix on {{ $trend->last()->created_at->format('j M') }}</span>
+          </div>
+        </div>
+      @endif
+
+      @forelse ($audits as $audit)
+        <a class="row" href="/audits/{{ $audit->id }}">
+          <div>
+            <div class="rtitle">{{ $audit->created_at->format('j M Y, H:i') }}</div>
+            <div class="rmeta">{{ ucfirst($audit->status) }}</div>
+          </div>
+          @if ($audit->status === 'completed')
+            @php
+              $c = $audit->issueCounts();
+            @endphp
+            <span class="badge {{ $c['fail'] ? 'poor' : ($c['warn'] ? 'fair' : 'good') }}">
+              {{ $c['fail'] }} to fix · {{ $c['warn'] }} to review
+            </span>
+          @else
+            <span class="badge unknown">—</span>
+          @endif
+        </a>
+      @empty
+        <div class="muted" style="margin-top:10px">No audits yet. Run the first one above.</div>
+      @endforelse
+      <div style="margin-top:16px">{{ $audits->links() }}</div>
+    </div>
+  </div>
+
+  <div id="tab-marketing" class="tab-panel">
+    <div class="card">
+      <p class="subhead">Content drafts</p>
+      <form method="POST" action="/sites/{{ $site->id }}/content" class="topic-form">
+        @csrf
+        <input type="text" name="topic" placeholder="Topic, e.g. &quot;why regular servicing matters&quot;" required maxlength="255">
+        <button class="btn btn-primary" type="submit">Generate draft</button>
+      </form>
+
+      @forelse ($content as $piece)
+        <a class="row" href="/content/{{ $piece->id }}">
+          <div>
+            <div class="rtitle">{{ $piece->title ?? $piece->topic }}</div>
+            <div class="rmeta">{{ $piece->created_at->format('j M Y, H:i') }} · {{ ucfirst($piece->status) }}</div>
+          </div>
+          @if ($piece->status === 'completed')
+            <span class="badge good">{{ $piece->word_count }} words</span>
+          @elseif ($piece->status === 'failed')
+            <span class="badge poor">Failed</span>
+          @else
+            <span class="badge unknown">—</span>
+          @endif
+        </a>
+      @empty
+        <div class="muted" style="margin-top:10px">No drafts yet. Enter a topic above to generate the first one.</div>
+      @endforelse
+    </div>
+
+    <div class="card">
+      <p class="subhead">Social posts</p>
+      <p class="muted" style="margin:0 0 12px; font-size:var(--fs-sm)">
+        A caption and an image, ready to review and post yourself — nothing here posts anywhere automatically.
+      </p>
+      <form method="POST" action="/sites/{{ $site->id }}/social" class="topic-form">
+        @csrf
+        <select name="platform" style="background:var(--ink); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+                padding:11px 12px; color:var(--paper); font:inherit; font-size:var(--fs-base)">
+          <option value="general">General</option>
+          <option value="instagram">Instagram</option>
+          <option value="facebook">Facebook</option>
+          <option value="linkedin">LinkedIn</option>
+        </select>
+        <input type="text" name="topic" placeholder="Topic, e.g. &quot;spring MOT check reminder&quot;" required maxlength="255">
+        <button class="btn btn-primary" type="submit">Generate post</button>
+      </form>
+
+      @forelse ($socialPosts as $post)
+        <a class="row" href="/social/{{ $post->id }}">
+          <div>
+            <div class="rtitle" style="text-transform:capitalize">{{ $post->platform }} — {{ $post->topic }}</div>
+            <div class="rmeta">{{ $post->created_at->format('j M Y, H:i') }} · {{ ucfirst($post->status) }}</div>
+          </div>
+          @if ($post->status === 'completed')
+            <span class="badge good">Ready</span>
+          @elseif ($post->status === 'failed')
+            <span class="badge poor">Failed</span>
+          @else
+            <span class="badge unknown">—</span>
+          @endif
+        </a>
+      @empty
+        <div class="muted" style="margin-top:10px">No posts yet. Pick a platform and topic above.</div>
+      @endforelse
+    </div>
   </div>
 </div>
+
+<script>
+function showSiteTab(name) {
+  document.getElementById('tab-seo').style.display = name === 'seo' ? '' : 'none';
+  document.getElementById('tab-marketing').style.display = name === 'marketing' ? '' : 'none';
+  document.getElementById('tab-btn-seo').classList.toggle('active', name === 'seo');
+  document.getElementById('tab-btn-marketing').classList.toggle('active', name === 'marketing');
+  sessionStorage.setItem('siteTab', name);
+}
+showSiteTab(sessionStorage.getItem('siteTab') || 'seo');
+</script>
 @endsection
