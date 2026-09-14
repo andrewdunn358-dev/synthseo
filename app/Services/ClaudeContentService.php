@@ -81,11 +81,21 @@ class ClaudeContentService
      * generic advice in a vacuum. Optional because most audits will
      * not have a completed comparison to draw on yet.
      *
+     * $stackContext, when present, tells Claude what platform the site
+     * actually runs on (auto-detected CMS) and where it's hosted
+     * (set by hand on the site, since hosting providers aren't
+     * reliably detectable from outside) - the difference between
+     * "enable caching" and "install WP Rocket, or ask your host to
+     * enable server-side caching if you're not sure which plugin to
+     * use." Optional because CMS detection can come back empty and
+     * host is opt-in.
+     *
      * @param array<int, array{title:string,detail:?string,status:string,severity:?string,source:string}> $findings
      * @param array{domain:string,ahead:bool,our_traffic:?int,competitor_traffic:?int,our_keywords:?int,competitor_keywords:?int}|null $competitorContext
+     * @param array{cms:?string,host:?string}|null $stackContext
      * @return array{text:?string,model:?string,error:?string}
      */
-    public function generateRecommendations(array $findings, string $siteName, string $siteUrl, ?array $competitorContext = null): array
+    public function generateRecommendations(array $findings, string $siteName, string $siteUrl, ?array $competitorContext = null, ?array $stackContext = null): array
     {
         $empty = ['text' => null, 'model' => null, 'error' => null];
 
@@ -93,7 +103,7 @@ class ClaudeContentService
             return array_merge($empty, ['error' => 'Nothing to summarise - this audit has no failing or warning findings.']);
         }
 
-        $result = $this->callClaude($this->recommendationsPrompt($findings, $siteName, $siteUrl, $competitorContext), 1024);
+        $result = $this->callClaude($this->recommendationsPrompt($findings, $siteName, $siteUrl, $competitorContext, $stackContext), 1024);
 
         if ($result['error']) {
             return array_merge($empty, ['error' => $result['error']]);
@@ -172,7 +182,7 @@ class ClaudeContentService
         PROMPT;
     }
 
-    private function recommendationsPrompt(array $findings, string $siteName, string $siteUrl, ?array $competitorContext = null): string
+    private function recommendationsPrompt(array $findings, string $siteName, string $siteUrl, ?array $competitorContext = null, ?array $stackContext = null): string
     {
         // Findings serialised as plain lines rather than JSON - the
         // model doesn't need machine-readable input, and a flat list
@@ -205,12 +215,30 @@ class ClaudeContentService
                 . "the findings above are the concrete, actionable detail.\n";
         }
 
+        // Only mention what is actually known. A site with no detected
+        // CMS gets no platform line at all rather than "this site's
+        // platform is unknown" - a non-answer that would just read as
+        // noise in front of a business owner.
+        $stackLine = '';
+
+        if ($stackContext && ($stackContext['cms'] || $stackContext['host'])) {
+            $platform = trim(implode(' ', array_filter([
+                $stackContext['cms'],
+                $stackContext['host'] ? "hosted with {$stackContext['host']}" : null,
+            ])));
+            $stackLine = "\nThis site runs on {$platform}. Where a fix would genuinely differ by platform "
+                . "(caching, image optimisation, a specific setting's location), give the concrete instruction for "
+                . "this platform specifically rather than generic advice - name a real plugin or control panel "
+                . "area if you are confident one applies, but do not invent a specific plugin name or menu path "
+                . "you are not sure is accurate for this platform.\n";
+        }
+
         return <<<PROMPT
         You are advising the owner of {$siteName} ({$siteUrl}) on their
         website's SEO audit. Here are the issues found:
 
         {$findingsList}
-        {$competitorLine}
+        {$competitorLine}{$stackLine}
         Write a short, prioritised action plan a non-technical business
         owner can actually use: which 2-4 things matter most and why,
         in plain English, no jargon left unexplained. Skip anything

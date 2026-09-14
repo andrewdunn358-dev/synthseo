@@ -61,6 +61,26 @@
     @endif
   </form>
 
+  {{-- CMS is auto-detected from the last audit crawl (see
+       SeoAuditService::detectCms) - shown, not editable, since it's a
+       fact about the site, not a preference. Host is set by hand:
+       hosting providers aren't reliably detectable from outside, and
+       this is one field to fill in rather than infrastructure to
+       build for something already known. Both feed the AI
+       recommendations prompt so advice can be platform-specific. --}}
+  <form method="POST" action="/sites/{{ $site->id }}/host" class="freq-row">
+    @csrf
+    @if ($site->cms)
+      <span class="muted" style="font-size:var(--fs-sm)">Platform: <strong style="color:var(--paper)">{{ $site->cms }}</strong></span>
+      <span class="muted" style="font-size:var(--fs-sm)">·</span>
+    @endif
+    <label class="muted" style="font-size:var(--fs-sm)">Hosted with:</label>
+    <input type="text" name="host" value="{{ $site->host }}" placeholder="e.g. 20i, SiteGround, Cloudways"
+      style="background:var(--ink); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+             padding:6px 10px; color:var(--paper); font:inherit; font-size:var(--fs-sm); width:180px">
+    <button class="btn" type="submit" style="padding:7px 14px; font-size:var(--fs-sm)">Save</button>
+  </form>
+
   @if (session('status'))<div class="flash">{{ session('status') }}</div>@endif
 
   <div class="card">

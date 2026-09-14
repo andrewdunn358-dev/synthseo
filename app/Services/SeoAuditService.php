@@ -81,6 +81,7 @@ class SeoAuditService
                 'response_ms' => (int) ((microtime(true) - $started) * 1000),
                 'error' => $this->readableError($e->getMessage()),
                 'findings' => [],
+                'cms' => null,
             ];
         }
 
@@ -95,13 +96,18 @@ class SeoAuditService
         if (! $response->successful()) {
             // No point parsing an error page's markup and reporting its
             // missing meta description as if it were the client's
-            // homepage. Stop here and say so.
+            // homepage. Stop here and say so. CMS detection still runs
+            // on the raw HTML though - even a themed error page often
+            // still carries WordPress/Shopify/etc footprints, and that
+            // is genuinely useful context to have even from a failed
+            // fetch.
             return [
                 'score' => $this->score($findings),
                 'http_status' => $response->status(),
                 'response_ms' => $responseMs,
                 'error' => 'The page returned HTTP ' . $response->status() . ', so on-page checks were skipped.',
                 'findings' => $findings,
+                'cms' => $this->detectCms($html),
             ];
         }
 
@@ -128,7 +134,31 @@ class SeoAuditService
             'response_ms' => $responseMs,
             'error' => null,
             'findings' => $findings,
+            'cms' => $this->detectCms($html),
         ];
+    }
+
+    /**
+     * Sniffs common CMS/platform footprints from the raw HTML.
+     * Best-effort and deliberately narrow: returns null rather than a
+     * wrong guess when nothing matches, because a confidently wrong
+     * platform label would make AI-generated advice confidently wrong
+     * too ("open your WordPress admin" to someone who has no WordPress
+     * admin) - worse than staying generic.
+     */
+    private function detectCms(string $html): ?string
+    {
+        return match (true) {
+            str_contains($html, 'wp-content') || str_contains($html, 'wp-includes')
+                || preg_match('/name="generator"\s+content="WordPress/i', $html) === 1 => 'WordPress',
+            str_contains($html, 'cdn.shopify.com') || str_contains($html, 'Shopify.theme') => 'Shopify',
+            str_contains($html, 'static.wixstatic.com') => 'Wix',
+            str_contains($html, 'squarespace.com') || str_contains($html, 'Static.SQUARESPACE_CONTEXT') => 'Squarespace',
+            preg_match('/data-wf-(site|page)/i', $html) === 1 => 'Webflow',
+            preg_match('/name="generator"\s+content="Joomla/i', $html) === 1 => 'Joomla',
+            str_contains($html, 'Drupal.settings') || str_contains($html, '/sites/default/files/') => 'Drupal',
+            default => null,
+        };
     }
 
     // ------------------------------------------------------------ checks

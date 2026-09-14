@@ -95,10 +95,24 @@ class RunSeoAudit implements ShouldQueue
         // triggered by a click or by the scheduler itself - so turning
         // on weekly audits today starts a real 7-day clock from today,
         // not from whenever a previous run happened to be.
+        //
+        // The detected CMS is also written back here rather than kept
+        // per-audit - a platform rarely changes, and the AI
+        // recommendations prompt (see GenerateAuditRecommendations)
+        // needs one current answer on the site, not a history of
+        // guesses across old audits. Only overwritten when something
+        // was actually detected this run - a run that found nothing
+        // must not blank out a platform a previous run did detect.
         $site = $audit->site()->withoutGlobalScopes()->first();
 
-        if ($site && $site->audit_frequency !== 'off') {
-            $site->rescheduleNextAudit();
+        if ($site) {
+            if ($site->audit_frequency !== 'off') {
+                $site->rescheduleNextAudit();
+            }
+
+            if (! empty($result['cms']) && $result['cms'] !== $site->cms) {
+                $site->update(['cms' => $result['cms']]);
+            }
         }
     }
 

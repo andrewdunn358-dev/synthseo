@@ -68,7 +68,17 @@ class GenerateAuditRecommendations implements ShouldQueue
             'competitor_keywords' => $comparison->competitor_keywords,
         ] : null;
 
-        $result = $claude->generateRecommendations($findings, $audit->site->name, $audit->site->url, $competitorContext);
+        $stackContext = $audit->site->cms || $audit->site->host
+            ? ['cms' => $audit->site->cms, 'host' => $audit->site->host]
+            : null;
+
+        $result = $claude->generateRecommendations(
+            $findings,
+            $audit->site->name,
+            $audit->site->url,
+            $competitorContext,
+            $stackContext,
+        );
 
         $audit->update([
             'recommendations_status' => $result['error'] && ! $result['text'] ? 'failed' : 'completed',

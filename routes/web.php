@@ -25,6 +25,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/sites/{site}', [SiteController::class, 'show']);
     Route::delete('/sites/{site}', [SiteController::class, 'destroy']);
     Route::post('/sites/{site}/audit-frequency', [SiteController::class, 'updateFrequency']);
+    Route::post('/sites/{site}/host', [SiteController::class, 'updateHost']);
 
     Route::post('/sites/{site}/audits', [AuditController::class, 'store']);
     Route::get('/audits/{audit}', [AuditController::class, 'show']);

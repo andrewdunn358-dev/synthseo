@@ -224,6 +224,43 @@ check('a port on the base is preserved',
 check('an unparseable base returns null rather than a wrong guess',
     runResolve('not a url', '/contact') === null);
 
+echo "\n=== 12. CMS DETECTION ===\n";
+function runDetectCms(string $html): ?string
+{
+    $service = new SeoAuditService();
+    $ref = new ReflectionClass($service);
+    $m = $ref->getMethod('detectCms');
+    $m->setAccessible(true);
+    return $m->invoke($service, $html);
+}
+
+check('wp-content path is detected as WordPress',
+    runDetectCms('<html><body><img src="/wp-content/uploads/x.jpg"></body></html>') === 'WordPress');
+
+check('the WordPress generator meta tag is detected',
+    runDetectCms('<meta name="generator" content="WordPress 6.4">') === 'WordPress');
+
+check('a Shopify CDN reference is detected as Shopify',
+    runDetectCms('<script src="https://cdn.shopify.com/s/x.js"></script>') === 'Shopify');
+
+check('a Wix static asset host is detected as Wix',
+    runDetectCms('<img src="https://static.wixstatic.com/media/x.jpg">') === 'Wix');
+
+check('a Squarespace context script is detected as Squarespace',
+    runDetectCms('<script>Static.SQUARESPACE_CONTEXT = {};</script>') === 'Squarespace');
+
+check('a data-wf-site attribute is detected as Webflow',
+    runDetectCms('<html data-wf-site="abc123">') === 'Webflow');
+
+check('the Joomla generator meta tag is detected',
+    runDetectCms('<meta name="generator" content="Joomla! - Open Source Content Management">') === 'Joomla');
+
+check('a Drupal.settings reference is detected as Drupal',
+    runDetectCms('<script>var Drupal = Drupal || {}; Drupal.settings = {};</script>') === 'Drupal');
+
+check('plain HTML with no platform footprint returns null, not a wrong guess',
+    runDetectCms('<html><body><h1>Hello</h1></body></html>') === null);
+
 echo "\n";
 if ($failures) {
     echo count($failures) . " FAILURE(S):\n";
