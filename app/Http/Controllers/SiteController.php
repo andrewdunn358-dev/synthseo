@@ -4,17 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Models\Site;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class SiteController extends Controller
 {
     public function index()
     {
-        // No explicit account filter - the global scope on Site does it.
-        // See App\Support\BelongsToAccount.
+        // Account scoping still happens via the global scope on Site
+        // (see App\Support\BelongsToAccount) - visibleTo() adds the
+        // finer restriction on top for a team member who only has
+        // access to some of the account's sites, not all of it.
         // findings eager-loaded because issueCounts() reads them - without
         // this the listing fires a query per site, which is fine at three
         // sites and awful at fifty.
-        $sites = Site::with('latestAudit.findings')->orderBy('name')->get();
+        $sites = Site::visibleTo(Auth::user())->with('latestAudit.findings')->orderBy('name')->get();
 
         return view('sites.index', compact('sites'));
     }
@@ -36,9 +39,13 @@ class SiteController extends Controller
 
     public function show(Site $site)
     {
-        // Route model binding respects the global scope, so a client
-        // requesting another account's site id gets a 404 rather than
-        // someone else's data.
+        // Route model binding respects the account-level global scope,
+        // so a user from another account gets a 404 rather than
+        // someone else's data. This adds the finer restriction on top:
+        // a restricted team member without an explicit grant for this
+        // site also gets a 404, even though it's in their own account.
+        abort_unless(Site::visibleTo(Auth::user())->where('id', $site->id)->exists(), 404);
+
         $audits = $site->audits()->with('findings')->paginate(20);
         $content = $site->content()->limit(10)->get();
         $competitors = $site->competitorComparisons()->limit(10)->get();

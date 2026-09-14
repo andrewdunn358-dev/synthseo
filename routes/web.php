@@ -8,6 +8,7 @@ use App\Http\Controllers\ContentController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\SocialPostController;
+use App\Http\Controllers\TeamController;
 
 Route::get('/', function () {
     return response()->file(public_path('index.html'));
@@ -49,4 +50,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/newsletters/{newsletter}', [NewsletterController::class, 'show']);
     Route::post('/newsletters/{newsletter}/send', [NewsletterController::class, 'send']);
     Route::post('/sites/{site}/subscribers', [NewsletterController::class, 'addSubscriber']);
+
+    Route::get('/team', [TeamController::class, 'index']);
+    Route::post('/team', [TeamController::class, 'store']);
+    Route::post('/team/{teamMember}/access', [TeamController::class, 'updateAccess']);
+    Route::delete('/team/{teamMember}', [TeamController::class, 'destroy']);
 });

@@ -48,6 +48,42 @@ class Site extends Model
         return $this->hasMany(Newsletter::class)->latest();
     }
 
+    /** Team members explicitly granted access - see User::sites and
+     *  the site_user migration's doc comment for why this only
+     *  matters for role === 'member'. */
+    public function users()
+    {
+        return $this->belongsToMany(User::class);
+    }
+
+    /**
+     * The sites a given user should actually see. Staff and account
+     * scoping already happen at the query level via BelongsToAccount,
+     * so this only adds one more restriction on top: a restricted
+     * team member sees just their explicit grants, not everything in
+     * the account the way an admin does.
+     *
+     * KNOWN LIMITATION: this is checked for the sites LIST and the
+     * site detail page itself (SiteController::show). It does not yet
+     * stop a member navigating directly to /audits/{id} (or /social/,
+     * /newsletters/, etc.) for a site outside their grants by guessing
+     * or being sent a URL - those still only check account_id via the
+     * existing global scope, not the finer site_user grant. Fine for
+     * internal team testing where everyone is trusted; not yet a real
+     * boundary if a restricted member's incentives might differ from
+     * that. Worth closing properly (each of those controllers would
+     * need the same visibleTo() check this one now has) before this
+     * is used with anyone outside the team.
+     */
+    public static function visibleTo(User $user)
+    {
+        if ($user->isStaff() || $user->isAdmin()) {
+            return static::query();
+        }
+
+        return static::query()->whereHas('users', fn ($q) => $q->where('users.id', $user->id));
+    }
+
     /**
      * Days between scheduled runs for each frequency. 'off' never
      * appears here - callers check that before reaching this.

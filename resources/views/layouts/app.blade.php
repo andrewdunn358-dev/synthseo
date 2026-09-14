@@ -215,6 +215,9 @@
     @auth
     <nav class="top-nav">
       <a href="/dashboard">Sites</a>
+      @if (auth()->user()->canManageTeam())
+        <a href="/team">Team</a>
+      @endif
       <form method="POST" action="/logout" style="margin:0">
         @csrf
         <button type="submit" class="linklike">Log out</button>

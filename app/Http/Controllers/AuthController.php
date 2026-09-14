@@ -70,8 +70,10 @@ class AuthController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            // Never 'staff' from a public form - see User::isStaff().
-            'role' => 'client',
+            // The person creating a brand-new account is its natural
+            // owner - 'admin', not 'client'. Never 'staff' from a
+            // public form - see User::isStaff().
+            'role' => 'admin',
         ]);
 
         Auth::login($user);
