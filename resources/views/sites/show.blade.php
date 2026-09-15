@@ -277,14 +277,20 @@
     <div class="section">
       <div class="section-head">
         <p class="subhead">Search performance</p>
-        @if ($site->hasSearchConsole())
-          <form method="POST" action="/sites/{{ $site->id }}/search-console"
-            onsubmit="return confirm('Disconnect Search Console for {{ $site->name }}?')">
-            @csrf @method('DELETE')
-            <button class="linklike" type="submit" style="color:var(--poor); font-size:var(--fs-xs)">Disconnect</button>
-          </form>
-        @else
-          <a class="btn" href="/sites/{{ $site->id }}/search-console/connect">Connect Search Console</a>
+        {{-- Connecting is an agency setup task and exposes the Google
+             account's full property list, so it's admin-only - see
+             SearchConsoleController::middleware(). Members still see
+             the data below, just not the controls. --}}
+        @if (auth()->user()->canManageTeam())
+          @if ($site->hasSearchConsole())
+            <form method="POST" action="/sites/{{ $site->id }}/search-console"
+              onsubmit="return confirm('Disconnect Search Console for {{ $site->name }}?')">
+              @csrf @method('DELETE')
+              <button class="linklike" type="submit" style="color:var(--poor); font-size:var(--fs-xs)">Disconnect</button>
+            </form>
+          @else
+            <a class="btn" href="/sites/{{ $site->id }}/search-console/connect">Connect Search Console</a>
+          @endif
         @endif
       </div>
 

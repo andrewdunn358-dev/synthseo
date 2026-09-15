@@ -3,11 +3,36 @@
 namespace App\Http\Controllers;
 
 use App\Models\Site;
+use Illuminate\Routing\Controllers\HasMiddleware;
 use App\Services\SearchConsoleService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
-class SearchConsoleController extends Controller
+class SearchConsoleController extends Controller implements HasMiddleware
 {
+    /**
+     * Admin/staff only, every method - including the callback.
+     *
+     * Not just tidiness: listProperties() authenticates with the
+     * SITE's stored token, which belongs to whoever connected it
+     * (normally the agency's own Google account). So a restricted team
+     * member opening the property picker for one site they have access
+     * to would have seen every Search Console property that account
+     * can read - i.e. other clients' domains. Gating the whole
+     * controller is the fix; connecting Search Console is an agency
+     * setup task, not something a per-site member needs at all.
+     */
+    public static function middleware(): array
+    {
+        return [
+            function ($request, $next) {
+                abort_unless(Auth::user()?->canManageTeam(), 403);
+
+                return $next($request);
+            },
+        ];
+    }
+
     public function connect(Site $site, SearchConsoleService $gsc)
     {
         if (! $gsc->isConfigured()) {
