@@ -33,9 +33,25 @@
     </div>
   @empty
     @if (! $error)
-      <div class="muted" style="margin-top:var(--sp-5)">
-        That Google login can't see any Search Console properties. Make sure the site is verified in Search Console
-        and that this login has at least full access to it.
+      <div class="muted" style="margin-top:var(--sp-5); line-height:1.7">
+        That Google account can't see any Search Console properties. Two usual reasons:
+        <br><br>
+        <strong style="color:var(--paper)">The wrong Google account.</strong> Google often reuses whichever account
+        you're already signed into without asking. Check which one it used at
+        <a href="https://search.google.com/search-console" target="_blank" rel="noopener" style="color:var(--brand)">search.google.com/search-console</a>
+        — if that page shows no properties either, it's this account.
+        <br><br>
+        <strong style="color:var(--paper)">{{ $site->name }} isn't in Search Console yet.</strong> The site has to be
+        added and verified there first — nothing here can read data that doesn't exist yet.
+      </div>
+
+      <div style="margin-top:var(--sp-5); display:flex; gap:12px; flex-wrap:wrap">
+        <a class="btn btn-primary" href="/sites/{{ $site->id }}/search-console/connect">Try a different account</a>
+        <form method="POST" action="/sites/{{ $site->id }}/search-console">
+          @csrf @method('DELETE')
+          <button class="btn" type="submit">Disconnect</button>
+        </form>
+        <a class="btn" href="/sites/{{ $site->id }}">Back to {{ $site->name }}</a>
       </div>
     @endif
   @endforelse
