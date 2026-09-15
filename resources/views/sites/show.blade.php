@@ -55,7 +55,19 @@
   /* Modal shell itself is shared in the layout - only the history
      table inside it is specific to keywords. */
   .comp-metrics{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-4); margin-top:var(--sp-5); }
-  .comp-metric{ text-align:center; padding:var(--sp-4) var(--sp-3); border:1px solid var(--border);
+  /* Search Console results - real data from Google, so presented as
+     a plain table rather than dressed up. Average position is
+     colour-banded on the same top-10 / 11-30 thresholds used for
+     tracked keywords, so the two panels read consistently. */
+  table.gsc-table{ width:100%; border-collapse:collapse; margin-top:var(--sp-4); }
+  table.gsc-table th{ text-align:left; font-size:var(--fs-xs); font-weight:600; color:var(--grey-dim);
+                       text-transform:uppercase; letter-spacing:.04em; padding:0 2px 10px;
+                       border-bottom:1px solid var(--border); }
+  table.gsc-table td{ padding:12px 2px; border-bottom:1px solid var(--border); font-size:var(--fs-sm); }
+  table.gsc-table tr:last-child td{ border-bottom:0; }
+  .gsc-good{ color:var(--good); font-weight:600; }
+  .gsc-fair{ color:var(--fair); font-weight:600; }
+  .gsc-poor{ color:var(--poor); font-weight:600; }  .comp-metric{ text-align:center; padding:var(--sp-4) var(--sp-3); border:1px solid var(--border);
                 border-radius:var(--radius); }
   .comp-metric.leader{ border-color:var(--brand); }
   .comp-num{ font-size:var(--fs-metric); font-weight:650; line-height:1; }
@@ -260,6 +272,65 @@
       @empty
         <div class="muted" style="margin-top:10px">No comparisons yet. Enter a competitor's domain above.</div>
       @endforelse
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <p class="subhead">Search performance</p>
+        @if ($site->hasSearchConsole())
+          <form method="POST" action="/sites/{{ $site->id }}/search-console"
+            onsubmit="return confirm('Disconnect Search Console for {{ $site->name }}?')">
+            @csrf @method('DELETE')
+            <button class="linklike" type="submit" style="color:var(--poor); font-size:var(--fs-xs)">Disconnect</button>
+          </form>
+        @else
+          <a class="btn" href="/sites/{{ $site->id }}/search-console/connect">Connect Search Console</a>
+        @endif
+      </div>
+
+      @if (! $site->hasSearchConsole())
+        <p class="muted" style="margin:0; font-size:var(--fs-sm)">
+          {{ $site->name }}'s own real search data from Google — which searches actually showed this site, how many
+          people clicked, and where it actually ranked. Unlike everything else here, these are Google's own recorded
+          figures rather than an outside estimate.
+        </p>
+      @elseif ($searchConsole && $searchConsole['error'])
+        <div class="notice">{{ $searchConsole['error'] }}</div>
+      @elseif ($searchConsole && $searchConsole['rows'])
+        @php $t = $searchConsole['totals']; @endphp
+        <p class="muted" style="margin:0 0 4px; font-size:var(--fs-sm)">
+          {{ number_format($t['clicks']) }} clicks from {{ number_format($t['impressions']) }} appearances across
+          these searches, {{ \Carbon\Carbon::parse($t['start'])->format('j M') }} to
+          {{ \Carbon\Carbon::parse($t['end'])->format('j M') }}.
+        </p>
+        <table class="gsc-table">
+          <thead>
+            <tr><th>Search term</th><th>Clicks</th><th>Appearances</th><th>Avg position</th></tr>
+          </thead>
+          <tbody>
+            @foreach (array_slice($searchConsole['rows'], 0, 10) as $row)
+              <tr>
+                <td>{{ $row['query'] }}</td>
+                <td>{{ number_format($row['clicks']) }}</td>
+                <td class="muted">{{ number_format($row['impressions']) }}</td>
+                <td>
+                  <span class="{{ $row['position'] <= 10 ? 'gsc-good' : ($row['position'] <= 30 ? 'gsc-fair' : 'gsc-poor') }}">
+                    {{ number_format($row['position'], 1) }}
+                  </span>
+                </td>
+              </tr>
+            @endforeach
+          </tbody>
+        </table>
+        <p class="muted" style="margin-top:12px; font-size:var(--fs-xs)">
+          Google's data lags a few days, so this ends {{ \Carbon\Carbon::parse($t['end'])->diffForHumans() }}.
+          Any of these worth watching properly? Add it under Keyword tracking below.
+        </p>
+      @else
+        <p class="muted" style="margin:0; font-size:var(--fs-sm)">
+          Connected, but Google returned no search data for this period yet.
+        </p>
+      @endif
     </div>
 
     <div class="section">

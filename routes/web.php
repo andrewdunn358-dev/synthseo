@@ -7,6 +7,7 @@ use App\Http\Controllers\CompetitorController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\KeywordController;
 use App\Http\Controllers\NewsletterController;
+use App\Http\Controllers\SearchConsoleController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\SocialPostController;
@@ -58,6 +59,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/keywords/{tracked}', [KeywordController::class, 'show']);
     Route::post('/keywords/{tracked}/check', [KeywordController::class, 'checkNow']);
     Route::delete('/keywords/{tracked}', [KeywordController::class, 'destroy']);
+
+    Route::get('/sites/{site}/search-console/connect', [SearchConsoleController::class, 'connect']);
+    Route::get('/sites/{site}/search-console/property', [SearchConsoleController::class, 'chooseProperty']);
+    Route::post('/sites/{site}/search-console/property', [SearchConsoleController::class, 'saveProperty']);
+    Route::delete('/sites/{site}/search-console', [SearchConsoleController::class, 'disconnect']);
+    // Google redirects to one fixed URI for the whole app - which site
+    // it belongs to arrives in `state`, not the path.
+    Route::get('/search-console/callback', [SearchConsoleController::class, 'callback']);
 
     Route::get('/team', [TeamController::class, 'index']);
     Route::post('/team', [TeamController::class, 'store']);

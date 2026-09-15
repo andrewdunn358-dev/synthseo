@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Site;
+use App\Services\SearchConsoleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -64,7 +65,13 @@ class SiteController extends Controller
         $subscribers = $site->subscribers()->limit(50)->get();
         $trackedKeywords = $site->trackedKeywords()->with(['rankings', 'latestRanking'])->get();
 
-        return view('sites.show', compact('site', 'audits', 'content', 'competitors', 'socialPosts', 'newsletters', 'subscribers', 'trackedKeywords'));
+        // Only queried when the site is actually connected AND has a
+        // property chosen - this is a live call to Google on every
+        // page load, so it stays out of the way entirely until it can
+        // return something real.
+        $searchConsole = $site->hasSearchConsole() ? app(SearchConsoleService::class)->topQueries($site) : null;
+
+        return view('sites.show', compact('site', 'audits', 'content', 'competitors', 'socialPosts', 'newsletters', 'subscribers', 'trackedKeywords', 'searchConsole'));
     }
 
     public function destroy(Site $site)

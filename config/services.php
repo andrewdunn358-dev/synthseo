@@ -54,6 +54,18 @@ return [
     ],
 
     /*
+     | Google OAuth - Search Console only, read-only scope. Needs a
+     | Google Cloud project with an OAuth client; `redirect` must match
+     | the authorised redirect URI registered there exactly, or Google
+     | rejects the whole flow before it starts.
+     */
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', 'https://synthseo.co.uk/search-console/callback'),
+    ],
+
+    /*
      | OpenAI - used for social post image generation only (gpt-image-1).
      | Separate account/key from Anthropic - Claude has no image
      | generation, this is a different vendor for a different job.

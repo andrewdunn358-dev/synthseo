@@ -9,13 +9,28 @@ class Site extends Model
 {
     use BelongsToAccount;
 
-    protected $fillable = ['account_id', 'name', 'url', 'audit_frequency', 'next_audit_at', 'cms', 'host', 'location', 'resend_audience_id'];
+    protected $fillable = ['account_id', 'name', 'url', 'audit_frequency', 'next_audit_at', 'cms', 'host', 'location', 'resend_audience_id',
+        'gsc_access_token', 'gsc_refresh_token', 'gsc_token_expires_at', 'gsc_property'];
 
     protected function casts(): array
     {
         return [
             'next_audit_at' => 'datetime',
+            'gsc_token_expires_at' => 'datetime',
+            // Encrypted at rest - a refresh token is a long-lived key
+            // to a client's real search data. See the migration's doc
+            // comment.
+            'gsc_access_token' => 'encrypted',
+            'gsc_refresh_token' => 'encrypted',
         ];
+    }
+
+    /** Connected AND pointed at a specific property - a site that
+     *  granted access but never picked a property can't be queried
+     *  yet, and shouldn't read as connected. */
+    public function hasSearchConsole(): bool
+    {
+        return (bool) ($this->gsc_refresh_token && $this->gsc_property);
     }
 
     public function audits()

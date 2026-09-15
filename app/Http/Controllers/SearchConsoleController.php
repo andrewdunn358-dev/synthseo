@@ -1,0 +1,113 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Site;
+use App\Services\SearchConsoleService;
+use Illuminate\Http\Request;
+
+class SearchConsoleController extends Controller
+{
+    public function connect(Site $site, SearchConsoleService $gsc)
+    {
+        if (! $gsc->isConfigured()) {
+            return redirect('/sites/' . $site->id)
+                ->with('status', 'Google credentials are not configured. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.');
+        }
+
+        return redirect()->away($gsc->authUrl($site));
+    }
+
+    /**
+     * Google's one fixed redirect for the whole app - which site this
+     * belongs to comes back in `state`, set when the auth URL was
+     * built. Looked up without the account scope because the scope is
+     * about who's logged in, and the site is already identified by an
+     * id we issued ourselves; the ownership check immediately after
+     * is what actually matters.
+     */
+    public function callback(Request $request, SearchConsoleService $gsc)
+    {
+        if ($request->query('error')) {
+            return redirect('/sites')->with('status', 'Google access was declined.');
+        }
+
+        $site = Site::find((int) $request->query('state'));
+
+        if (! $site) {
+            return redirect('/sites')->with('status', 'That connection could not be matched to a site.');
+        }
+
+        $result = $gsc->exchangeCode($site, (string) $request->query('code'));
+
+        if ($result['error']) {
+            return redirect('/sites/' . $site->id)->with('status', 'Could not connect: ' . $result['error']);
+        }
+
+        // Auto-select when exactly one property plausibly matches this
+        // site's own domain - the common case, and asking someone to
+        // pick from a list of one is pointless ceremony. Anything else
+        // (several matches, none, a domain property vs URL-prefix
+        // ambiguity) goes to the picker rather than guessing.
+        $listed = $gsc->listProperties($site);
+        $host = parse_url($site->url, PHP_URL_HOST);
+        $host = $host ? preg_replace('/^www\./i', '', $host) : null;
+
+        $matches = array_values(array_filter(
+            $listed['properties'],
+            fn ($property) => $host && str_contains(strtolower($property), strtolower($host)),
+        ));
+
+        if (count($matches) === 1) {
+            $site->update(['gsc_property' => $matches[0]]);
+
+            return redirect('/sites/' . $site->id)->with('status', 'Search Console connected.');
+        }
+
+        return redirect('/sites/' . $site->id . '/search-console/property')
+            ->with('status', 'Connected — now choose which property to use.');
+    }
+
+    public function chooseProperty(Site $site, SearchConsoleService $gsc)
+    {
+        $listed = $gsc->listProperties($site);
+
+        return view('search-console.property', [
+            'site' => $site,
+            'properties' => $listed['properties'],
+            'error' => $listed['error'],
+        ]);
+    }
+
+    public function saveProperty(Request $request, Site $site, SearchConsoleService $gsc)
+    {
+        $data = $request->validate([
+            'property' => ['required', 'string', 'max:255'],
+        ]);
+
+        // Only ever accepts a property this login genuinely has - a
+        // value posted from a form is a value someone can edit.
+        $listed = $gsc->listProperties($site);
+
+        if (! in_array($data['property'], $listed['properties'], true)) {
+            return redirect('/sites/' . $site->id . '/search-console/property')
+                ->with('status', 'That property is not available on this Google login.');
+        }
+
+        $site->update(['gsc_property' => $data['property']]);
+
+        return redirect('/sites/' . $site->id)->with('status', 'Search Console connected.');
+    }
+
+    public function disconnect(Site $site)
+    {
+        $site->update([
+            'gsc_access_token' => null,
+            'gsc_refresh_token' => null,
+            'gsc_token_expires_at' => null,
+            'gsc_property' => null,
+        ]);
+
+        return redirect('/sites/' . $site->id)->with('status', 'Search Console disconnected.');
+    }
+}
