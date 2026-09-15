@@ -185,6 +185,26 @@
   .check-dot.warn{ background:var(--fair); }
   .check-dot.pass{ background:var(--good); }
 
+  /* Shared modal shell. Third use (keyword history, social posts,
+     competitor results) so it lives here rather than being redefined
+     per page. Content inside is each page's own business; this is
+     just the backdrop, panel, and header row.
+
+     Openers must render their content inline and hidden - the point
+     of a modal here is that the data is already loaded, so it opens
+     instantly with no request. */
+  .modal{ display:none; position:fixed; inset:0; z-index:50;
+          background:rgba(4,7,10,.72); padding:32px 20px; overflow-y:auto; }
+  .modal.open{ display:block; }
+  .modal-inner{ background:var(--panel); border:1px solid var(--border-strong);
+                border-radius:var(--radius); padding:var(--sp-5); max-width:620px; margin:0 auto; }
+  .modal-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .modal-title{ font-size:var(--fs-lg); font-weight:650; letter-spacing:-0.01em; }
+  .modal-sub{ font-size:var(--fs-sm); color:var(--grey); margin-top:4px; }
+  .modal-close{ background:none; border:0; color:var(--grey); font-size:24px; line-height:1;
+                cursor:pointer; padding:0 4px; }
+  .modal-close:hover{ color:var(--paper); }
+
   /* Subtle entrance for content that just finished generating (an
      audit completing, a draft appearing) - not decorative motion on
      things that were already there. Reduced-motion users get none. */

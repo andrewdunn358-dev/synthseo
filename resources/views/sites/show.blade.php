@@ -52,20 +52,15 @@
             background:none; border:0; padding:0; color:inherit; font-family:inherit; cursor:pointer; text-align:left; }
   .kw-link:hover{ color:var(--brand); }
 
-  /* History popup. Rendered inline per keyword (the data is already
-     loaded for the list), so opening it is instant and needs no
-     request - the reason a modal beats a separate page here. */
-  .kw-modal{ display:none; position:fixed; inset:0; z-index:50;
-             background:rgba(4,7,10,.72); padding:32px 20px; overflow-y:auto; }
-  .kw-modal.open{ display:block; }
-  .kw-modal-inner{ background:var(--panel); border:1px solid var(--border-strong);
-                    border-radius:var(--radius); padding:var(--sp-5); max-width:620px; margin:0 auto; }
-  .kw-modal-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
-  .kw-modal-title{ font-size:var(--fs-lg); font-weight:650; letter-spacing:-0.01em; }
-  .kw-modal-sub{ font-size:var(--fs-sm); color:var(--grey); margin-top:4px; }
-  .kw-modal-close{ background:none; border:0; color:var(--grey); font-size:24px; line-height:1;
-                    cursor:pointer; padding:0 4px; }
-  .kw-modal-close:hover{ color:var(--paper); }
+  /* Modal shell itself is shared in the layout - only the history
+     table inside it is specific to keywords. */
+  .comp-metrics{ display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-4); margin-top:var(--sp-5); }
+  .comp-metric{ text-align:center; padding:var(--sp-4) var(--sp-3); border:1px solid var(--border);
+                border-radius:var(--radius); }
+  .comp-metric.leader{ border-color:var(--brand); }
+  .comp-num{ font-size:var(--fs-metric); font-weight:650; line-height:1; }
+  .comp-label{ font-size:var(--fs-sm); color:var(--grey); margin-top:6px; word-break:break-all; }
+  .comp-sub{ font-size:var(--fs-xs); color:var(--grey-dim); margin-top:6px; }
 
   table.kw-history{ width:100%; border-collapse:collapse; margin-top:var(--sp-5); }
   table.kw-history th{ text-align:left; font-size:var(--fs-xs); font-weight:600; color:var(--grey-dim);
@@ -189,22 +184,79 @@
       </form>
 
       @forelse ($competitors as $comparison)
-        <a class="row" href="/competitors/{{ $comparison->id }}">
+        @php
+          $leader = $comparison->status === 'completed' ? $comparison->leader() : null;
+        @endphp
+        <div class="row" style="cursor:pointer" onclick="openModal('comp-{{ $comparison->id }}')">
           <div>
             <div class="rtitle">vs {{ $comparison->competitor_domain }}</div>
             <div class="rmeta">{{ $comparison->created_at->format('j M Y, H:i') }} · {{ ucfirst($comparison->status) }}</div>
           </div>
           @if ($comparison->status === 'completed')
-            @php
-              $leadsThem = $comparison->leader() === 'us';
-            @endphp
-            <span class="badge {{ $leadsThem ? 'good' : 'fair' }}">{{ $leadsThem ? 'Ahead' : 'Behind' }}</span>
+            <span class="badge {{ $leader === 'us' ? 'good' : 'fair' }}">{{ $leader === 'us' ? 'Ahead' : 'Behind' }}</span>
           @elseif ($comparison->status === 'failed')
             <span class="badge poor">Failed</span>
           @else
             <span class="badge unknown">—</span>
           @endif
-        </a>
+        </div>
+
+        <div class="modal" id="modal-comp-{{ $comparison->id }}" onclick="if (event.target === this) closeModal('comp-{{ $comparison->id }}')">
+          <div class="modal-inner">
+            <div class="modal-head">
+              <div>
+                <div class="modal-title">{{ parse_url($site->url, PHP_URL_HOST) ?? $site->name }} vs {{ $comparison->competitor_domain }}</div>
+                <div class="modal-sub">{{ $comparison->created_at->format('j M Y, H:i') }} · {{ ucfirst($comparison->status) }}</div>
+              </div>
+              <button type="button" class="modal-close" onclick="closeModal('comp-{{ $comparison->id }}')" aria-label="Close">×</button>
+            </div>
+
+            @if ($comparison->isPending())
+              <div class="notice waiting">
+                <span class="spinner" aria-hidden="true"></span>
+                <span class="muted">Fetching search data for both domains.</span>
+              </div>
+            @endif
+
+            @if ($comparison->error)
+              <div class="notice">{{ $comparison->error }}</div>
+            @endif
+
+            @if ($comparison->status === 'completed')
+              <div class="comp-metrics">
+                <div class="comp-metric {{ $leader === 'us' ? 'leader' : '' }}">
+                  <div class="comp-num">{{ $comparison->our_traffic !== null ? number_format($comparison->our_traffic) : '—' }}</div>
+                  <div class="comp-label">{{ $site->name }}</div>
+                  <div class="comp-sub">{{ $comparison->our_keywords !== null ? number_format($comparison->our_keywords) . ' ranking keywords' : '' }}</div>
+                </div>
+                <div class="comp-metric {{ $leader === 'them' ? 'leader' : '' }}">
+                  <div class="comp-num">{{ $comparison->competitor_traffic !== null ? number_format($comparison->competitor_traffic) : '—' }}</div>
+                  <div class="comp-label">{{ $comparison->competitor_domain }}</div>
+                  <div class="comp-sub">{{ $comparison->competitor_keywords !== null ? number_format($comparison->competitor_keywords) . ' ranking keywords' : '' }}</div>
+                </div>
+              </div>
+              <div class="muted" style="text-align:center; font-size:var(--fs-xs); margin-top:8px">
+                Estimated monthly visits from unpaid search results
+              </div>
+
+              <p style="font-weight:650; margin:var(--sp-5) 0 6px; color:{{ $leader === 'us' ? 'var(--good)' : 'var(--fair)' }}">
+                @if ($leader === 'us')
+                  {{ $site->name }} is ahead right now
+                @elseif ($leader === 'them')
+                  {{ $comparison->competitor_domain }} is ahead right now
+                @else
+                  Not enough data to say which is ahead
+                @endif
+              </p>
+
+              {{-- The full page carries the longer explainer and the
+                   cross-link into this site's own audit findings -
+                   deliberately not duplicated here, since the point of
+                   the modal is the quick answer. --}}
+              <a class="btn" href="/competitors/{{ $comparison->id }}" style="margin-top:var(--sp-4)">Full comparison</a>
+            @endif
+          </div>
+        </div>
       @empty
         <div class="muted" style="margin-top:10px">No comparisons yet. Enter a competitor's domain above.</div>
       @endforelse
@@ -244,7 +296,7 @@
         @endphp
         <div class="row" style="align-items:flex-start">
           <div style="flex:1; min-width:200px">
-            <button type="button" class="kw-link" onclick="openKeywordModal({{ $tracked->id }})">{{ $tracked->keyword }}</button>
+            <button type="button" class="kw-link" onclick="openModal('kw-{{ $tracked->id }}')">{{ $tracked->keyword }}</button>
             <div class="rmeta">
               @if (! $latest)
                 First check pending
@@ -299,7 +351,7 @@
                 <div class="kw-position-label">not ranking</div>
               </div>
             @endif
-            <button type="button" class="linklike" style="font-size:var(--fs-xs)" onclick="openKeywordModal({{ $tracked->id }})">History</button>
+            <button type="button" class="linklike" style="font-size:var(--fs-xs)" onclick="openModal('kw-{{ $tracked->id }}')">History</button>
           </div>
         </div>
 
@@ -308,12 +360,12 @@
              inline costs nothing extra and the modal opens instantly
              with no request - which is the whole reason a popup makes
              sense here over a separate page. --}}
-        <div class="kw-modal" id="kw-modal-{{ $tracked->id }}" onclick="if (event.target === this) closeKeywordModal({{ $tracked->id }})">
-          <div class="kw-modal-inner">
-            <div class="kw-modal-head">
+        <div class="modal" id="modal-kw-{{ $tracked->id }}" onclick="if (event.target === this) closeModal('kw-{{ $tracked->id }}')">
+          <div class="modal-inner">
+            <div class="modal-head">
               <div>
-                <div class="kw-modal-title">{{ $tracked->keyword }}</div>
-                <div class="kw-modal-sub">
+                <div class="modal-title">{{ $tracked->keyword }}</div>
+                <div class="modal-sub">
                   @if ($latest && $latest->position !== null)
                     Currently position {{ $latest->position }} — page {{ (int) ceil($latest->position / 10) }} of Google
                   @else
@@ -324,7 +376,7 @@
                   @endif
                 </div>
               </div>
-              <button type="button" class="kw-modal-close" onclick="closeKeywordModal({{ $tracked->id }})" aria-label="Close">×</button>
+              <button type="button" class="modal-close" onclick="closeModal('kw-{{ $tracked->id }}')" aria-label="Close">×</button>
             </div>
 
             <table class="kw-history">
@@ -506,7 +558,7 @@
       </form>
 
       @forelse ($socialPosts as $post)
-        <a class="row" href="/social/{{ $post->id }}">
+        <div class="row" style="cursor:pointer" onclick="openModal('social-{{ $post->id }}')">
           <div>
             <div class="rtitle" style="text-transform:capitalize">{{ $post->platform }} — {{ $post->topic }}</div>
             <div class="rmeta">{{ $post->created_at->format('j M Y, H:i') }} · {{ ucfirst($post->status) }}</div>
@@ -518,7 +570,46 @@
           @else
             <span class="badge unknown">—</span>
           @endif
-        </a>
+        </div>
+
+        <div class="modal" id="modal-social-{{ $post->id }}" onclick="if (event.target === this) closeModal('social-{{ $post->id }}')">
+          <div class="modal-inner">
+            <div class="modal-head">
+              <div>
+                <div class="modal-title" style="text-transform:capitalize">{{ $post->platform }} post</div>
+                <div class="modal-sub">{{ $post->topic }} · {{ $post->created_at->format('j M Y, H:i') }}</div>
+              </div>
+              <button type="button" class="modal-close" onclick="closeModal('social-{{ $post->id }}')" aria-label="Close">×</button>
+            </div>
+
+            @if ($post->isPending())
+              <div class="notice waiting">
+                <span class="spinner" aria-hidden="true"></span>
+                <span class="muted">Writing the caption and generating an image.</span>
+              </div>
+            @endif
+
+            {{-- Caption and image are independent outcomes - see the
+                 social_posts migration. Each shown or explained on its
+                 own so a working caption is never hidden behind an
+                 image that failed. --}}
+            @if ($post->image_path)
+              <img src="{{ $post->imageUrl() }}" alt="" style="width:100%; border-radius:var(--radius); display:block; margin-top:var(--sp-5)">
+            @elseif ($post->image_error)
+              <div class="notice">Image: {{ $post->image_error }}</div>
+            @endif
+
+            @if ($post->caption)
+              <div id="caption-{{ $post->id }}" style="font-size:var(--fs-base); line-height:1.7; white-space:pre-wrap; margin-top:var(--sp-5)">{{ $post->caption }}</div>
+              <button class="btn" type="button" style="margin-top:var(--sp-4)"
+                onclick="navigator.clipboard.writeText(document.getElementById('caption-{{ $post->id }}').innerText)">
+                Copy caption
+              </button>
+            @elseif ($post->caption_error)
+              <div class="notice">Caption: {{ $post->caption_error }}</div>
+            @endif
+          </div>
+        </div>
       @empty
         <div class="muted" style="margin-top:10px">No posts yet. Pick a platform and topic above.</div>
       @endforelse
@@ -594,34 +685,61 @@ function showSiteTab(name) {
 }
 showSiteTab(sessionStorage.getItem('siteTab') || 'seo');
 
-function openKeywordModal(id) {
-  var el = document.getElementById('kw-modal-' + id);
+/*
+ * Modal open state is remembered in sessionStorage for the same
+ * reason the active tab is, and it matters more here: this page
+ * reloads itself every 5 seconds while anything is generating, which
+ * would otherwise slam an open modal shut repeatedly - exactly while
+ * someone is watching a social post or comparison finish. Reopening
+ * it on load makes the refresh invisible instead.
+ *
+ * Keys are prefixed by type (kw-3, social-3, comp-3) because a
+ * keyword, a post and a comparison can all legitimately be id 3.
+ */
+function openModal(key) {
+  var el = document.getElementById('modal-' + key);
   if (el) {
     el.classList.add('open');
-    // Stops the page scrolling behind the open modal.
     document.body.style.overflow = 'hidden';
+    sessionStorage.setItem('openModal', key);
   }
 }
 
-function closeKeywordModal(id) {
-  var el = document.getElementById('kw-modal-' + id);
+function closeModal(key) {
+  var el = document.getElementById('modal-' + key);
   if (el) {
     el.classList.remove('open');
     document.body.style.overflow = '';
   }
+  sessionStorage.removeItem('openModal');
 }
 
-// Escape closes whichever modal is open - expected behaviour for any
-// popup, and the page auto-refreshes every 5s while something is
-// pending, so being stuck in one with no obvious way out would be
-// genuinely annoying.
+function closeAllModals() {
+  document.querySelectorAll('.modal.open').forEach(function (el) {
+    el.classList.remove('open');
+  });
+  document.body.style.overflow = '';
+  sessionStorage.removeItem('openModal');
+}
+
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
-    document.querySelectorAll('.kw-modal.open').forEach(function (el) {
-      el.classList.remove('open');
-    });
-    document.body.style.overflow = '';
+    closeAllModals();
   }
 });
+
+// Restore after an auto-refresh. Silently forgets the key if that
+// modal no longer exists - a tracked keyword that was deleted, a post
+// that finished and re-rendered - rather than leaving a stale entry
+// that never matches anything again.
+(function () {
+  var key = sessionStorage.getItem('openModal');
+  if (! key) return;
+  if (document.getElementById('modal-' + key)) {
+    openModal(key);
+  } else {
+    sessionStorage.removeItem('openModal');
+  }
+})();
 </script>
 @endsection
