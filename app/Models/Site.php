@@ -53,6 +53,11 @@ class Site extends Model
         return $this->hasMany(NewsletterSubscriber::class)->latest();
     }
 
+    public function trackedKeywords()
+    {
+        return $this->hasMany(TrackedKeyword::class)->latest();
+    }
+
     /** Team members explicitly granted access - see User::sites and
      *  the site_user migration's doc comment for why this only
      *  matters for role === 'member'. */

@@ -5,6 +5,7 @@ use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CompetitorController;
 use App\Http\Controllers\ContentController;
+use App\Http\Controllers\KeywordController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\SiteController;
@@ -52,6 +53,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/newsletters/{newsletter}/send', [NewsletterController::class, 'send']);
     Route::post('/sites/{site}/subscribers', [NewsletterController::class, 'addSubscriber']);
     Route::delete('/subscribers/{subscriber}', [NewsletterController::class, 'destroySubscriber']);
+
+    Route::post('/sites/{site}/keywords', [KeywordController::class, 'store']);
+    Route::post('/keywords/{tracked}/check', [KeywordController::class, 'checkNow']);
+    Route::delete('/keywords/{tracked}', [KeywordController::class, 'destroy']);
 
     Route::get('/team', [TeamController::class, 'index']);
     Route::post('/team', [TeamController::class, 'store']);

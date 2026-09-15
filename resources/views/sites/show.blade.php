@@ -160,6 +160,83 @@
     </div>
 
     <div class="section">
+      <p class="subhead">Keyword tracking</p>
+      <p class="muted" style="margin:0 0 14px; font-size:var(--fs-sm)">
+        Where {{ $site->name }} actually ranks in Google for phrases that matter to it, checked weekly. A gap of a
+        few positions is normal week to week; the trend over months is what to watch.
+      </p>
+      <form method="POST" action="/sites/{{ $site->id }}/keywords" class="topic-form">
+        @csrf
+        <input type="text" name="keyword" placeholder="e.g. &quot;estate agents North Shields&quot;" required maxlength="255">
+        <button class="btn btn-primary" type="submit">Track keyword</button>
+      </form>
+
+      @forelse ($trackedKeywords as $tracked)
+        @php
+          $latest = $tracked->latestRanking;
+          $history = $tracked->rankings->whereNotNull('rank')->values();
+        @endphp
+        <div class="row" style="align-items:flex-start">
+          <div style="flex:1; min-width:200px">
+            <div class="rtitle">{{ $tracked->keyword }}</div>
+            <div class="rmeta">
+              @if (! $latest)
+                First check pending
+              @elseif ($latest->error)
+                Last check failed: {{ $latest->error }}
+              @elseif ($latest->rank === null)
+                Not in the top 100 · checked {{ $latest->checked_at->diffForHumans() }}
+              @else
+                checked {{ $latest->checked_at->diffForHumans() }}
+              @endif
+            </div>
+
+            @if ($history->count() >= 2)
+              @php
+                $w = 100; $h = 28; $pad = 3;
+                $ranks = $history->pluck('rank');
+                // Inverted: rank 1 is the best possible outcome, so it
+                // plots at the TOP of the sparkline, same visual sense
+                // as the audit fail-count trend where lower is better.
+                $max = max(100, $ranks->max());
+                $step = ($w - $pad * 2) / max(1, $history->count() - 1);
+                $points = $ranks->values()->map(function ($rank, $i) use ($step, $pad, $h, $max) {
+                  $x = $pad + $i * $step;
+                  $y = $pad + (($rank - 1) / max(1, $max - 1)) * ($h - $pad * 2);
+                  return round($x, 1) . ',' . round($y, 1);
+                })->implode(' ');
+              @endphp
+              <svg viewBox="0 0 {{ $w }} {{ $h }}" preserveAspectRatio="none" style="width:140px;height:26px;display:block;margin-top:6px">
+                <polyline points="{{ $points }}" fill="none" stroke="var(--brand)" stroke-width="1.6"
+                  stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+              </svg>
+            @endif
+          </div>
+
+          <div style="display:flex; align-items:center; gap:14px">
+            @if ($latest && $latest->rank !== null)
+              <span class="badge {{ $latest->rank <= 10 ? 'good' : ($latest->rank <= 30 ? 'fair' : 'poor') }}">
+                #{{ $latest->rank }}
+              </span>
+            @else
+              <span class="badge unknown">—</span>
+            @endif
+            <form method="POST" action="/keywords/{{ $tracked->id }}/check">
+              @csrf
+              <button class="linklike" type="submit" style="font-size:var(--fs-xs)">Check now</button>
+            </form>
+            <form method="POST" action="/keywords/{{ $tracked->id }}" onsubmit="return confirm('Stop tracking &quot;{{ $tracked->keyword }}&quot;?')">
+              @csrf @method('DELETE')
+              <button class="linklike" type="submit" style="color:var(--poor); font-size:var(--fs-xs)">Stop</button>
+            </form>
+          </div>
+        </div>
+      @empty
+        <div class="muted" style="margin-top:10px">No keywords tracked yet. Add one above.</div>
+      @endforelse
+    </div>
+
+    <div class="section">
       <p class="subhead">Audit history</p>
 
       @php

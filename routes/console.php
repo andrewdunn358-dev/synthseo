@@ -1,8 +1,10 @@
 <?php
 
+use App\Jobs\CheckKeywordRanking;
 use App\Jobs\RunSeoAudit;
 use App\Models\Audit;
 use App\Models\Site;
+use App\Models\TrackedKeyword;
 use Illuminate\Support\Facades\Schedule;
 
 /**
@@ -63,4 +65,18 @@ Schedule::call(function () {
 
             RunSeoAudit::dispatch($audit->id);
         });
+})->everyFifteenMinutes();
+
+/**
+ * Recurring keyword rank checks - same reasoning as the audit
+ * scheduler above, just for tracked_keywords.next_check_at instead of
+ * sites.next_audit_at. CheckKeywordRanking itself sets the next
+ * check date +7 days each time it runs.
+ */
+Schedule::call(function () {
+    TrackedKeyword::withoutGlobalScopes()
+        ->where(function ($query) {
+            $query->whereNull('next_check_at')->orWhere('next_check_at', '<=', now());
+        })
+        ->each(fn (TrackedKeyword $tracked) => CheckKeywordRanking::dispatch($tracked->id));
 })->everyFifteenMinutes();

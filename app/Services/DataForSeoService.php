@@ -241,6 +241,82 @@ class DataForSeoService
         return ['results' => $results, 'error' => null];
     }
 
+    /**
+     * Where a specific domain sits in live Google results for one
+     * keyword - the actual "are we ranking, and at what position"
+     * answer, as opposed to searchByQuery() above, which answers "who
+     * else ranks here" without caring about any one domain in
+     * particular.
+     *
+     * Depth 100 rather than this endpoint's smaller default - a
+     * business ranking on page 3 is a genuinely different, better
+     * story than "not ranking at all", and only checking the first
+     * page would report both as identically absent.
+     *
+     * Not finding the domain in the checked depth is a valid, common
+     * result (most small businesses don't rank in the top 100 for
+     * every keyword they'd like to), not an error - $rank is simply
+     * null in that case, same "null means no result, never invent a
+     * zero" convention as everywhere else in this app.
+     *
+     * @return array{rank:?int,error:?string}
+     */
+    public function checkRanking(string $keyword, string $domain): array
+    {
+        $empty = ['rank' => null, 'error' => null];
+
+        if (! $this->login || ! $this->password) {
+            return array_merge($empty, [
+                'error' => 'No DataForSEO credentials configured. Add DATAFORSEO_LOGIN and DATAFORSEO_PASSWORD in .env.',
+            ]);
+        }
+
+        $base = config('services.dataforseo.sandbox', true) ? self::SANDBOX_BASE : self::LIVE_BASE;
+        $target = self::normalizeDomain($domain);
+
+        try {
+            $response = Http::withBasicAuth($this->login, $this->password)
+                ->timeout(self::TIMEOUT)
+                ->post($base . self::SERP_ENDPOINT, [
+                    [
+                        'keyword' => $keyword,
+                        'location_name' => 'United Kingdom',
+                        'language_code' => 'en',
+                        'device' => 'desktop',
+                        'depth' => 100,
+                    ],
+                ]);
+        } catch (\Throwable $e) {
+            Log::warning('DataForSEO rank check failed', ['keyword' => $keyword, 'domain' => $target, 'error' => $e->getMessage()]);
+
+            return array_merge($empty, ['error' => 'The request did not complete (it may have timed out).']);
+        }
+
+        if (! $response->successful()) {
+            return array_merge($empty, ['error' => $this->readableError($response->status())]);
+        }
+
+        $task = $response->json('tasks.0');
+
+        if (! $task || ($task['status_code'] ?? null) !== 20000) {
+            return array_merge($empty, ['error' => $task['status_message'] ?? 'DataForSEO returned an error.']);
+        }
+
+        $items = $task['result'][0]['items'] ?? [];
+
+        foreach ($items as $item) {
+            if (($item['type'] ?? null) !== 'organic' || ! isset($item['domain'])) {
+                continue;
+            }
+
+            if (strcasecmp($item['domain'], $target) === 0) {
+                return ['rank' => $item['rank_absolute'] ?? null, 'error' => null];
+            }
+        }
+
+        return $empty;
+    }
+
     private function readableError(int $status): string
     {
         return match (true) {
