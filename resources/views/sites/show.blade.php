@@ -80,7 +80,8 @@
   .gsc-help strong{ color:var(--paper); font-weight:600; }
   .gsc-help a{ color:var(--brand); }
   .gsc-help-warn{ background:rgba(225,105,31,.10); border-left:3px solid var(--brand);
-                   padding:12px 14px; border-radius:var(--radius-sm); color:var(--paper); }  .comp-metric{ text-align:center; padding:var(--sp-4) var(--sp-3); border:1px solid var(--border);
+                   padding:12px 14px; border-radius:var(--radius-sm); color:var(--paper); }
+  .gsc-help-note{ font-size:var(--fs-xs); color:var(--grey-dim); }  .comp-metric{ text-align:center; padding:var(--sp-4) var(--sp-3); border:1px solid var(--border);
                 border-radius:var(--radius); }
   .comp-metric.leader{ border-color:var(--brand); }
   .comp-num{ font-size:var(--fs-metric); font-weight:650; line-height:1; }
@@ -563,13 +564,27 @@
             because it's proving who owns the domain — no third-party app is allowed to do that on someone's behalf.
           </p>
 
+          @php $agencyAccount = config('services.google.agency_account'); @endphp
+
           <h3>If the site already has Search Console</h3>
-          <p>Most sites built by an agency already do. Ask whoever set it up to add your Google account:</p>
+          <p>Most sites built by an agency already do. Ask whoever set it up to do this:</p>
           <ol>
             <li>In Search Console, pick the property, then <strong>Settings → Users and permissions</strong>.</li>
-            <li><strong>Add user</strong>, enter your Google account, permission <strong>Full</strong>.</li>
+            <li>
+              <strong>Add user</strong>, enter
+              @if ($agencyAccount)
+                <strong>{{ $agencyAccount }}</strong>
+              @else
+                your Google account
+              @endif
+              and set the permission to <strong>Full</strong>.
+            </li>
             <li>Come back here and press Connect Search Console.</li>
           </ol>
+          <p class="gsc-help-note">
+            That option only appears for an <strong>Owner</strong> of the property. If whoever you're asking only has
+            Full access rather than ownership, they can't add anyone — it has to come from the owner.
+          </p>
 
           <h3>If it doesn't exist yet</h3>
           <ol>
@@ -577,6 +592,13 @@
             <li><strong>Add property</strong> → <strong>Domain</strong>, and enter {{ parse_url($site->url, PHP_URL_HOST) ?? $site->url }}.</li>
             <li>Google gives a TXT record. Add it to the domain's DNS (for domains on 20i, that's the DNS panel for that domain).</li>
             <li>Press <strong>Verify</strong>. If it fails, DNS hasn't propagated yet — wait an hour and try again.</li>
+            @if ($agencyAccount)
+              <li>
+                If the client did this on their own Google account rather than yours, they also need to add
+                <strong>{{ $agencyAccount }}</strong> under <strong>Settings → Users and permissions</strong> with
+                <strong>Full</strong> permission.
+              </li>
+            @endif
             <li>Come back here and press Connect Search Console.</li>
           </ol>
 

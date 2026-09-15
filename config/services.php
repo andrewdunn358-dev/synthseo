@@ -63,6 +63,12 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI', 'https://synthseo.co.uk/search-console/callback'),
+        // The Google account clients should grant Search Console
+        // access to. Shown in the setup instructions so nobody has to
+        // be told it separately - config rather than hardcoded in the
+        // template, since the account this points at will outlive any
+        // one version of that wording.
+        'agency_account' => env('GOOGLE_AGENCY_ACCOUNT'),
     ],
 
     /*
