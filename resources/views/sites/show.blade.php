@@ -28,6 +28,18 @@
   .trend{ margin:14px 0 6px; }
   .trend-meta{ font-size:var(--fs-2xs); display:flex; justify-content:space-between; margin-top:6px; }
 
+  /* The position number as an actual headline figure, not a tiny
+     badge - "#15" in a pill reads as a label, where a client reading
+     this wants to see the number itself as the answer. Colour-banded
+     the same way the audit gauges are: top 10 good, 11-30 fair,
+     beyond that poor. */
+  .kw-position{ font-size:var(--fs-metric); font-weight:650; line-height:1; }
+  .kw-position.good{ color:var(--good); }
+  .kw-position.fair{ color:var(--fair); }
+  .kw-position.poor{ color:var(--poor); }
+  .kw-position.unknown{ color:var(--grey-dim); }
+  .kw-position-label{ font-size:var(--fs-2xs); color:var(--grey-dim); margin-top:3px; }
+
   /* Two tabs, nothing fancier - SEO and Marketing were sharing one
      long scroll of cards, and that got unreadable once social posts
      landed alongside audits, comparisons, and content drafts. Active
@@ -175,6 +187,14 @@
         @php
           $latest = $tracked->latestRanking;
           $history = $tracked->rankings->whereNotNull('position')->values();
+
+          // Movement since the previous check - the actual story a
+          // client cares about ("we went up 4 places"), not just where
+          // they sit today. Positive = improved, because a LOWER
+          // position number is better.
+          $previous = $history->count() >= 2 ? $history[$history->count() - 2] : null;
+          $movement = ($previous && $latest && $latest->position !== null)
+            ? $previous->position - $latest->position : null;
         @endphp
         <div class="row" style="align-items:flex-start">
           <div style="flex:1; min-width:200px">
@@ -185,9 +205,17 @@
               @elseif ($latest->error)
                 Last check failed: {{ $latest->error }}
               @elseif ($latest->position === null)
-                Not in the top 100 · checked {{ $latest->checked_at->diffForHumans() }}
+                Not found in the first 100 results · checked {{ $latest->checked_at->diffForHumans() }}
               @else
-                checked {{ $latest->checked_at->diffForHumans() }}
+                Page {{ (int) ceil($latest->position / 10) }} of Google
+                @if ($movement > 0)
+                  · <span style="color:var(--good)">up {{ $movement }} since last check</span>
+                @elseif ($movement < 0)
+                  · <span style="color:var(--poor)">down {{ abs($movement) }} since last check</span>
+                @elseif ($movement === 0)
+                  · no change since last check
+                @endif
+                · checked {{ $latest->checked_at->diffForHumans() }}
               @endif
             </div>
 
@@ -215,11 +243,15 @@
 
           <div style="display:flex; align-items:center; gap:14px">
             @if ($latest && $latest->position !== null)
-              <span class="badge {{ $latest->position <= 10 ? 'good' : ($latest->position <= 30 ? 'fair' : 'poor') }}">
-                #{{ $latest->position }}
-              </span>
+              <div style="text-align:right">
+                <div class="kw-position {{ $latest->position <= 10 ? 'good' : ($latest->position <= 30 ? 'fair' : 'poor') }}">{{ $latest->position }}</div>
+                <div class="kw-position-label">of 100</div>
+              </div>
             @else
-              <span class="badge unknown">—</span>
+              <div style="text-align:right">
+                <div class="kw-position unknown">—</div>
+                <div class="kw-position-label">not ranking</div>
+              </div>
             @endif
             <form method="POST" action="/keywords/{{ $tracked->id }}/check">
               @csrf
