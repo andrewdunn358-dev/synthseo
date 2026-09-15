@@ -42,7 +42,7 @@ class CheckKeywordRanking implements ShouldQueue
 
         KeywordRanking::create([
             'tracked_keyword_id' => $tracked->id,
-            'rank' => $result['rank'],
+            'position' => $result['rank'],
             'error' => $result['error'],
             'checked_at' => now(),
         ]);

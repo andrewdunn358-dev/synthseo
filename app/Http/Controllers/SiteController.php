@@ -62,7 +62,7 @@ class SiteController extends Controller
         $socialPosts = $site->socialPosts()->limit(10)->get();
         $newsletters = $site->newsletters()->limit(10)->get();
         $subscribers = $site->subscribers()->limit(50)->get();
-        $trackedKeywords = $site->trackedKeywords()->with('rankings')->get();
+        $trackedKeywords = $site->trackedKeywords()->with(['rankings', 'latestRanking'])->get();
 
         return view('sites.show', compact('site', 'audits', 'content', 'competitors', 'socialPosts', 'newsletters', 'subscribers', 'trackedKeywords'));
     }

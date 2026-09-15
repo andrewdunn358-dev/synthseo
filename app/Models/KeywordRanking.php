@@ -8,12 +8,16 @@ use Illuminate\Database\Eloquent\Model;
  * No account scope on this model deliberately - same reasoning as
  * AuditFinding: only ever reached through a TrackedKeyword, which is
  * already scoped.
+ *
+ * `position`, not `rank` - see the rename migration's doc comment.
+ * rank is a reserved word in MySQL 8 and broke every query touching
+ * this table.
  */
 class KeywordRanking extends Model
 {
     public $timestamps = false;
 
-    protected $fillable = ['tracked_keyword_id', 'rank', 'error', 'checked_at'];
+    protected $fillable = ['tracked_keyword_id', 'position', 'error', 'checked_at'];
 
     protected function casts(): array
     {

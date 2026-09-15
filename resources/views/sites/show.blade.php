@@ -174,7 +174,7 @@
       @forelse ($trackedKeywords as $tracked)
         @php
           $latest = $tracked->latestRanking;
-          $history = $tracked->rankings->whereNotNull('rank')->values();
+          $history = $tracked->rankings->whereNotNull('position')->values();
         @endphp
         <div class="row" style="align-items:flex-start">
           <div style="flex:1; min-width:200px">
@@ -184,7 +184,7 @@
                 First check pending
               @elseif ($latest->error)
                 Last check failed: {{ $latest->error }}
-              @elseif ($latest->rank === null)
+              @elseif ($latest->position === null)
                 Not in the top 100 · checked {{ $latest->checked_at->diffForHumans() }}
               @else
                 checked {{ $latest->checked_at->diffForHumans() }}
@@ -194,15 +194,15 @@
             @if ($history->count() >= 2)
               @php
                 $w = 100; $h = 28; $pad = 3;
-                $ranks = $history->pluck('rank');
+                $positions = $history->pluck('position');
                 // Inverted: rank 1 is the best possible outcome, so it
                 // plots at the TOP of the sparkline, same visual sense
                 // as the audit fail-count trend where lower is better.
-                $max = max(100, $ranks->max());
+                $max = max(100, $positions->max());
                 $step = ($w - $pad * 2) / max(1, $history->count() - 1);
-                $points = $ranks->values()->map(function ($rank, $i) use ($step, $pad, $h, $max) {
+                $points = $positions->values()->map(function ($position, $i) use ($step, $pad, $h, $max) {
                   $x = $pad + $i * $step;
-                  $y = $pad + (($rank - 1) / max(1, $max - 1)) * ($h - $pad * 2);
+                  $y = $pad + (($position - 1) / max(1, $max - 1)) * ($h - $pad * 2);
                   return round($x, 1) . ',' . round($y, 1);
                 })->implode(' ');
               @endphp
@@ -214,9 +214,9 @@
           </div>
 
           <div style="display:flex; align-items:center; gap:14px">
-            @if ($latest && $latest->rank !== null)
-              <span class="badge {{ $latest->rank <= 10 ? 'good' : ($latest->rank <= 30 ? 'fair' : 'poor') }}">
-                #{{ $latest->rank }}
+            @if ($latest && $latest->position !== null)
+              <span class="badge {{ $latest->position <= 10 ? 'good' : ($latest->position <= 30 ? 'fair' : 'poor') }}">
+                #{{ $latest->position }}
               </span>
             @else
               <span class="badge unknown">—</span>

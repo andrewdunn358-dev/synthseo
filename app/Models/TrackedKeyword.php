@@ -28,8 +28,11 @@ class TrackedKeyword extends Model
         return $this->hasMany(KeywordRanking::class)->orderBy('checked_at');
     }
 
+    /** Explicit column and aggregate - latestOfMany() defaults to the
+     *  model's created_at, which this model doesn't have (timestamps
+     *  are off; checked_at is the real time column). */
     public function latestRanking()
     {
-        return $this->hasOne(KeywordRanking::class)->latestOfMany('checked_at');
+        return $this->hasOne(KeywordRanking::class)->ofMany('checked_at', 'max');
     }
 }
