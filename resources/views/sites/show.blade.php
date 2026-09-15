@@ -48,8 +48,36 @@
             font-size:var(--fs-xs); font-weight:600; color:var(--grey-dim);
             text-transform:uppercase; letter-spacing:.04em; }
   .kw-head-right{ padding-right:96px; }
-  .kw-link{ font-weight:600; font-size:var(--fs-md); text-decoration:none; }
+  .kw-link{ font-weight:600; font-size:var(--fs-md); text-decoration:none;
+            background:none; border:0; padding:0; color:inherit; font-family:inherit; cursor:pointer; text-align:left; }
   .kw-link:hover{ color:var(--brand); }
+
+  /* History popup. Rendered inline per keyword (the data is already
+     loaded for the list), so opening it is instant and needs no
+     request - the reason a modal beats a separate page here. */
+  .kw-modal{ display:none; position:fixed; inset:0; z-index:50;
+             background:rgba(4,7,10,.72); padding:32px 20px; overflow-y:auto; }
+  .kw-modal.open{ display:block; }
+  .kw-modal-inner{ background:var(--panel); border:1px solid var(--border-strong);
+                    border-radius:var(--radius); padding:var(--sp-5); max-width:620px; margin:0 auto; }
+  .kw-modal-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .kw-modal-title{ font-size:var(--fs-lg); font-weight:650; letter-spacing:-0.01em; }
+  .kw-modal-sub{ font-size:var(--fs-sm); color:var(--grey); margin-top:4px; }
+  .kw-modal-close{ background:none; border:0; color:var(--grey); font-size:24px; line-height:1;
+                    cursor:pointer; padding:0 4px; }
+  .kw-modal-close:hover{ color:var(--paper); }
+
+  table.kw-history{ width:100%; border-collapse:collapse; margin-top:var(--sp-5); }
+  table.kw-history th{ text-align:left; font-size:var(--fs-xs); font-weight:600; color:var(--grey-dim);
+                        text-transform:uppercase; letter-spacing:.04em; padding:0 2px 10px;
+                        border-bottom:1px solid var(--border); }
+  table.kw-history td{ padding:12px 2px; border-bottom:1px solid var(--border); font-size:var(--fs-sm); }
+  table.kw-history tr:last-child td{ border-bottom:0; }
+  .kw-hist-pos{ font-weight:650; font-size:var(--fs-md); }
+  .kw-hist-pos.good{ color:var(--good); }
+  .kw-hist-pos.fair{ color:var(--fair); }
+  .kw-hist-pos.poor{ color:var(--poor); }
+  .kw-hist-pos.unknown{ color:var(--grey-dim); }
 
   /* Two tabs, nothing fancier - SEO and Marketing were sharing one
      long scroll of cards, and that got unreadable once social posts
@@ -216,7 +244,7 @@
         @endphp
         <div class="row" style="align-items:flex-start">
           <div style="flex:1; min-width:200px">
-            <a class="kw-link" href="/keywords/{{ $tracked->id }}">{{ $tracked->keyword }}</a>
+            <button type="button" class="kw-link" onclick="openKeywordModal({{ $tracked->id }})">{{ $tracked->keyword }}</button>
             <div class="rmeta">
               @if (! $latest)
                 First check pending
@@ -271,7 +299,91 @@
                 <div class="kw-position-label">not ranking</div>
               </div>
             @endif
-            <a class="linklike" href="/keywords/{{ $tracked->id }}" style="font-size:var(--fs-xs); text-decoration:none">History →</a>
+            <button type="button" class="linklike" style="font-size:var(--fs-xs)" onclick="openKeywordModal({{ $tracked->id }})">History</button>
+          </div>
+        </div>
+
+        {{-- One modal per keyword, rendered hidden. The rankings are
+             already eager-loaded for the list above, so building these
+             inline costs nothing extra and the modal opens instantly
+             with no request - which is the whole reason a popup makes
+             sense here over a separate page. --}}
+        <div class="kw-modal" id="kw-modal-{{ $tracked->id }}" onclick="if (event.target === this) closeKeywordModal({{ $tracked->id }})">
+          <div class="kw-modal-inner">
+            <div class="kw-modal-head">
+              <div>
+                <div class="kw-modal-title">{{ $tracked->keyword }}</div>
+                <div class="kw-modal-sub">
+                  @if ($latest && $latest->position !== null)
+                    Currently position {{ $latest->position }} — page {{ (int) ceil($latest->position / 10) }} of Google
+                  @else
+                    Not found in the first 100 results
+                  @endif
+                  @if ($history->isNotEmpty())
+                    · best so far: {{ $history->min('position') }}
+                  @endif
+                </div>
+              </div>
+              <button type="button" class="kw-modal-close" onclick="closeKeywordModal({{ $tracked->id }})" aria-label="Close">×</button>
+            </div>
+
+            <table class="kw-history">
+              <thead>
+                <tr><th>Date</th><th>Position</th><th>Change</th><th>Page</th></tr>
+              </thead>
+              <tbody>
+                {{-- Newest first for reading; the change column still
+                     compares against the previous check in real
+                     chronological order, not the row above it. --}}
+                @foreach ($tracked->rankings->sortByDesc('checked_at') as $ranking)
+                  @php
+                    $idx = $history->search(fn ($r) => $r->id === $ranking->id);
+                    $prior = ($idx !== false && $idx > 0) ? $history[$idx - 1] : null;
+                    $change = ($prior && $ranking->position !== null) ? $prior->position - $ranking->position : null;
+                  @endphp
+                  <tr>
+                    <td class="muted">{{ $ranking->checked_at->format('j M Y, H:i') }}</td>
+                    <td>
+                      @if ($ranking->error)
+                        <span class="muted">Check failed</span>
+                      @else
+                        <span class="kw-hist-pos {{ $ranking->position === null ? 'unknown' : ($ranking->position <= 10 ? 'good' : ($ranking->position <= 30 ? 'fair' : 'poor')) }}">
+                          {{ $ranking->position ?? 'Not found' }}
+                        </span>
+                      @endif
+                    </td>
+                    <td>
+                      @if ($change === null)
+                        <span class="muted">—</span>
+                      @elseif ($change > 0)
+                        <span style="color:var(--good)">▲ {{ $change }}</span>
+                      @elseif ($change < 0)
+                        <span style="color:var(--poor)">▼ {{ abs($change) }}</span>
+                      @else
+                        <span class="muted">No change</span>
+                      @endif
+                    </td>
+                    <td class="muted">{{ $ranking->position ? 'Page ' . (int) ceil($ranking->position / 10) : '—' }}</td>
+                  </tr>
+                @endforeach
+              </tbody>
+            </table>
+
+            @if ($tracked->rankings->isEmpty())
+              <div class="muted" style="margin-top:12px">No checks recorded yet — the first runs within a minute of adding a keyword.</div>
+            @endif
+
+            <div style="margin-top:var(--sp-5); display:flex; gap:12px; flex-wrap:wrap">
+              <form method="POST" action="/keywords/{{ $tracked->id }}/check">
+                @csrf
+                <button class="btn btn-primary" type="submit">Check now</button>
+              </form>
+              <form method="POST" action="/keywords/{{ $tracked->id }}"
+                onsubmit="return confirm('Stop tracking &quot;{{ $tracked->keyword }}&quot;? This deletes its history too.')">
+                @csrf @method('DELETE')
+                <button class="btn" type="submit" style="color:var(--poor); border-color:var(--poor)">Stop tracking</button>
+              </form>
+            </div>
           </div>
         </div>
       @empty
@@ -481,5 +593,35 @@ function showSiteTab(name) {
   sessionStorage.setItem('siteTab', name);
 }
 showSiteTab(sessionStorage.getItem('siteTab') || 'seo');
+
+function openKeywordModal(id) {
+  var el = document.getElementById('kw-modal-' + id);
+  if (el) {
+    el.classList.add('open');
+    // Stops the page scrolling behind the open modal.
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeKeywordModal(id) {
+  var el = document.getElementById('kw-modal-' + id);
+  if (el) {
+    el.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+// Escape closes whichever modal is open - expected behaviour for any
+// popup, and the page auto-refreshes every 5s while something is
+// pending, so being stuck in one with no obvious way out would be
+// genuinely annoying.
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.kw-modal.open').forEach(function (el) {
+      el.classList.remove('open');
+    });
+    document.body.style.overflow = '';
+  }
+});
 </script>
 @endsection
