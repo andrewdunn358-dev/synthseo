@@ -55,6 +55,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/subscribers/{subscriber}', [NewsletterController::class, 'destroySubscriber']);
 
     Route::post('/sites/{site}/keywords', [KeywordController::class, 'store']);
+    Route::get('/keywords/{tracked}', [KeywordController::class, 'show']);
     Route::post('/keywords/{tracked}/check', [KeywordController::class, 'checkNow']);
     Route::delete('/keywords/{tracked}', [KeywordController::class, 'destroy']);
 

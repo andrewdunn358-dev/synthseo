@@ -30,6 +30,13 @@ class KeywordController extends Controller
             ->with('status', 'Tracking "' . $data['keyword'] . '" - the first check will be ready within a minute.');
     }
 
+    public function show(TrackedKeyword $tracked)
+    {
+        $tracked->load(['site', 'rankings']);
+
+        return view('keywords.show', ['tracked' => $tracked]);
+    }
+
     public function checkNow(TrackedKeyword $tracked)
     {
         CheckKeywordRanking::dispatch($tracked->id);

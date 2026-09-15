@@ -40,6 +40,17 @@
   .kw-position.unknown{ color:var(--grey-dim); }
   .kw-position-label{ font-size:var(--fs-2xs); color:var(--grey-dim); margin-top:3px; }
 
+  /* Column headers, same treatment as the sites table - makes the
+     list read as data with labelled columns rather than a stack of
+     unexplained numbers. */
+  .kw-head{ display:flex; align-items:center; justify-content:space-between; gap:16px;
+            padding:0 2px 10px; margin-top:var(--sp-4); border-bottom:1px solid var(--border);
+            font-size:var(--fs-xs); font-weight:600; color:var(--grey-dim);
+            text-transform:uppercase; letter-spacing:.04em; }
+  .kw-head-right{ padding-right:96px; }
+  .kw-link{ font-weight:600; font-size:var(--fs-md); text-decoration:none; }
+  .kw-link:hover{ color:var(--brand); }
+
   /* Two tabs, nothing fancier - SEO and Marketing were sharing one
      long scroll of cards, and that got unreadable once social posts
      landed alongside audits, comparisons, and content drafts. Active
@@ -183,6 +194,13 @@
         <button class="btn btn-primary" type="submit">Track keyword</button>
       </form>
 
+      @if ($trackedKeywords->isNotEmpty())
+        <div class="kw-head">
+          <span style="flex:1; min-width:200px">Keyword</span>
+          <span class="kw-head-right">Position</span>
+        </div>
+      @endif
+
       @forelse ($trackedKeywords as $tracked)
         @php
           $latest = $tracked->latestRanking;
@@ -198,7 +216,7 @@
         @endphp
         <div class="row" style="align-items:flex-start">
           <div style="flex:1; min-width:200px">
-            <div class="rtitle">{{ $tracked->keyword }}</div>
+            <a class="kw-link" href="/keywords/{{ $tracked->id }}">{{ $tracked->keyword }}</a>
             <div class="rmeta">
               @if (! $latest)
                 First check pending
@@ -253,14 +271,7 @@
                 <div class="kw-position-label">not ranking</div>
               </div>
             @endif
-            <form method="POST" action="/keywords/{{ $tracked->id }}/check">
-              @csrf
-              <button class="linklike" type="submit" style="font-size:var(--fs-xs)">Check now</button>
-            </form>
-            <form method="POST" action="/keywords/{{ $tracked->id }}" onsubmit="return confirm('Stop tracking &quot;{{ $tracked->keyword }}&quot;?')">
-              @csrf @method('DELETE')
-              <button class="linklike" type="submit" style="color:var(--poor); font-size:var(--fs-xs)">Stop</button>
-            </form>
+            <a class="linklike" href="/keywords/{{ $tracked->id }}" style="font-size:var(--fs-xs); text-decoration:none">History →</a>
           </div>
         </div>
       @empty
