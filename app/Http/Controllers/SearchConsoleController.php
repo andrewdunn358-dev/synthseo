@@ -50,12 +50,10 @@ class SearchConsoleController extends Controller
         // (several matches, none, a domain property vs URL-prefix
         // ambiguity) goes to the picker rather than guessing.
         $listed = $gsc->listProperties($site);
-        $host = parse_url($site->url, PHP_URL_HOST);
-        $host = $host ? preg_replace('/^www\./i', '', $host) : null;
 
         $matches = array_values(array_filter(
             $listed['properties'],
-            fn ($property) => $host && str_contains(strtolower($property), strtolower($host)),
+            fn ($property) => SearchConsoleService::propertyMatchesSite($property, $site),
         ));
 
         if (count($matches) === 1) {
@@ -72,9 +70,18 @@ class SearchConsoleController extends Controller
     {
         $listed = $gsc->listProperties($site);
 
+        // Tagged rather than filtered - a non-matching property is
+        // still selectable (see propertyMatchesSite for why an
+        // apparent mismatch can be legitimate), it just has to be
+        // chosen deliberately.
+        $properties = array_map(fn ($property) => [
+            'name' => $property,
+            'matches' => SearchConsoleService::propertyMatchesSite($property, $site),
+        ], $listed['properties']);
+
         return view('search-console.property', [
             'site' => $site,
-            'properties' => $listed['properties'],
+            'properties' => $properties,
             'error' => $listed['error'],
         ]);
     }
@@ -92,6 +99,16 @@ class SearchConsoleController extends Controller
         if (! in_array($data['property'], $listed['properties'], true)) {
             return redirect('/sites/' . $site->id . '/search-console/property')
                 ->with('status', 'That property is not available on this Google login.');
+        }
+
+        // Guards the real mistake this is here to prevent: wiring one
+        // client's search data into a different client's dashboard.
+        // Rejected unless the form explicitly acknowledged it, so a
+        // blind post can't do it silently either.
+        if (! SearchConsoleService::propertyMatchesSite($data['property'], $site)
+            && ! $request->boolean('confirm_mismatch')) {
+            return redirect('/sites/' . $site->id . '/search-console/property')
+                ->with('status', 'That property does not look like it belongs to ' . $site->url . '.');
         }
 
         $site->update(['gsc_property' => $data['property']]);

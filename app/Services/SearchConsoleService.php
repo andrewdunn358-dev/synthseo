@@ -197,6 +197,37 @@ class SearchConsoleService
     }
 
     /**
+     * Does this property plausibly cover this site?
+     *
+     * Not a strict string match, because Google's identifiers and a
+     * site URL are different shapes: "sc-domain:example.co.uk",
+     * "https://example.co.uk/" and "https://www.example.co.uk" can all
+     * legitimately be the same site. A sc-domain property also covers
+     * every subdomain, so a site at blog.example.co.uk genuinely
+     * matches a property for example.co.uk - which is exactly why a
+     * mismatch is worth warning about rather than hard-blocking.
+     */
+    public static function propertyMatchesSite(string $property, Site $site): bool
+    {
+        $host = parse_url($site->url, PHP_URL_HOST);
+
+        if (! $host) {
+            return false;
+        }
+
+        $host = preg_replace('/^www\./i', '', strtolower($host));
+
+        $normalised = strtolower($property);
+        $normalised = preg_replace('#^sc-domain:#', '', $normalised);
+        $normalised = preg_replace('#^https?://#', '', $normalised);
+        $normalised = preg_replace('#^www\.#', '', $normalised);
+        $normalised = rtrim($normalised, '/');
+
+        // Exact match, or the property is a parent domain of this site.
+        return $normalised === $host || str_ends_with($host, '.' . $normalised);
+    }
+
+    /**
      * Top search queries for the last $days days.
      *
      * Ends three days ago, not today: Search Console data lags by
