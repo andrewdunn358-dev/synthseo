@@ -67,7 +67,20 @@
   table.gsc-table tr:last-child td{ border-bottom:0; }
   .gsc-good{ color:var(--good); font-weight:600; }
   .gsc-fair{ color:var(--fair); font-weight:600; }
-  .gsc-poor{ color:var(--poor); font-weight:600; }  .comp-metric{ text-align:center; padding:var(--sp-4) var(--sp-3); border:1px solid var(--border);
+  .gsc-poor{ color:var(--poor); font-weight:600; }
+
+  /* Instructions read as a document, so they get real prose spacing
+     rather than the tighter rhythm the rest of this page uses. */
+  .gsc-help{ margin-top:var(--sp-5); font-size:var(--fs-sm); line-height:1.7; color:var(--grey); }
+  .gsc-help p{ margin:0 0 var(--sp-4); }
+  .gsc-help h3{ font-size:var(--fs-base); font-weight:650; color:var(--paper);
+                 margin:var(--sp-5) 0 var(--sp-2); }
+  .gsc-help ol{ margin:0 0 var(--sp-4); padding-left:20px; }
+  .gsc-help li{ margin-bottom:8px; }
+  .gsc-help strong{ color:var(--paper); font-weight:600; }
+  .gsc-help a{ color:var(--brand); }
+  .gsc-help-warn{ background:rgba(225,105,31,.10); border-left:3px solid var(--brand);
+                   padding:12px 14px; border-radius:var(--radius-sm); color:var(--paper); }  .comp-metric{ text-align:center; padding:var(--sp-4) var(--sp-3); border:1px solid var(--border);
                 border-radius:var(--radius); }
   .comp-metric.leader{ border-color:var(--brand); }
   .comp-num{ font-size:var(--fs-metric); font-weight:650; line-height:1; }
@@ -289,7 +302,10 @@
               <button class="linklike" type="submit" style="color:var(--poor); font-size:var(--fs-xs)">Disconnect</button>
             </form>
           @else
-            <a class="btn" href="/sites/{{ $site->id }}/search-console/connect">Connect Search Console</a>
+            <div style="display:flex; gap:10px; flex-wrap:wrap">
+              <button type="button" class="btn" onclick="openModal('gsc-help')">How to set this up</button>
+              <a class="btn btn-primary" href="/sites/{{ $site->id }}/search-console/connect">Connect Search Console</a>
+            </div>
           @endif
         @endif
       </div>
@@ -518,6 +534,60 @@
       @empty
         <div class="muted" style="margin-top:10px">No keywords tracked yet. Add one above.</div>
       @endforelse
+    </div>
+
+    {{-- Setup instructions, written out rather than left to be
+         remembered. Search Console genuinely can't be set up from
+         inside this app - Google only accepts domain verification
+         through its own flow - so the honest thing is to explain the
+         whole path clearly instead of hiding the manual part. --}}
+    <div class="modal" id="modal-gsc-help" onclick="if (event.target === this) closeModal('gsc-help')">
+      <div class="modal-inner">
+        <div class="modal-head">
+          <div>
+            <div class="modal-title">Setting up Search Console</div>
+            <div class="modal-sub">For {{ $site->name }}</div>
+          </div>
+          <button type="button" class="modal-close" onclick="closeModal('gsc-help')" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="gsc-help">
+          <p>
+            Search Console is Google's own record of how a site performs in search — the real searches people typed,
+            how many clicked, and where the site actually ranked. It's free, and it's the only data here that comes
+            straight from Google rather than an outside estimate.
+          </p>
+
+          <p class="gsc-help-warn">
+            This part can't be done inside SynthSEO. Google only accepts domain verification through its own site,
+            because it's proving who owns the domain — no third-party app is allowed to do that on someone's behalf.
+          </p>
+
+          <h3>If the site already has Search Console</h3>
+          <p>Most sites built by an agency already do. Ask whoever set it up to add your Google account:</p>
+          <ol>
+            <li>In Search Console, pick the property, then <strong>Settings → Users and permissions</strong>.</li>
+            <li><strong>Add user</strong>, enter your Google account, permission <strong>Full</strong>.</li>
+            <li>Come back here and press Connect Search Console.</li>
+          </ol>
+
+          <h3>If it doesn't exist yet</h3>
+          <ol>
+            <li>Go to <a href="https://search.google.com/search-console" target="_blank" rel="noopener">search.google.com/search-console</a> and sign in.</li>
+            <li><strong>Add property</strong> → <strong>Domain</strong>, and enter {{ parse_url($site->url, PHP_URL_HOST) ?? $site->url }}.</li>
+            <li>Google gives a TXT record. Add it to the domain's DNS (for domains on 20i, that's the DNS panel for that domain).</li>
+            <li>Press <strong>Verify</strong>. If it fails, DNS hasn't propagated yet — wait an hour and try again.</li>
+            <li>Come back here and press Connect Search Console.</li>
+          </ol>
+
+          <h3>What to expect afterwards</h3>
+          <p>
+            Search Console only starts collecting from the day it's verified. A newly verified site shows nothing for
+            a day or two, and very little for the first few weeks. That's normal — it isn't broken, there just isn't
+            any history for Google to report yet.
+          </p>
+        </div>
+      </div>
     </div>
 
     <div class="section">
